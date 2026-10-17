@@ -603,3 +603,114 @@
 .alert-severity--advisory {
   color: var(--color-muted-foreground);
 }
+
+/* ---------- Map ---------- */
+
+.map-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+}
+.map-panel > .readout {
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+.readout--map {
+  grid-template-columns: repeat(auto-fit, minmax(calc(110px * var(--ui-scale)), 1fr));
+}
+.map-view {
+  position: relative;
+  min-height: 0;
+}
+.map-view__map {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-sans);
+}
+/* Beats leaflet.css's own #ddd, which loads after the app's styles */
+.map-view .leaflet-container {
+  background: var(--color-muted);
+}
+.map-view__note {
+  position: absolute;
+  left: var(--space-md);
+  bottom: var(--space-md);
+  z-index: 500;
+  margin: 0;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+}
+/* Leaflet chrome in the app's colours */
+.map-view .leaflet-control-zoom a,
+.map-view .leaflet-control-attribution {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  border-color: var(--color-border);
+}
+.map-view .leaflet-control-attribution a {
+  color: var(--color-link);
+}
+.map-view .leaflet-tooltip {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.map-view .leaflet-tooltip-top::before {
+  border-top-color: var(--color-border-strong);
+}
+.map-aircraft {
+  display: grid;
+  place-items: center;
+}
+.map-aircraft svg {
+  fill: var(--color-accent);
+  stroke: var(--color-background);
+  stroke-width: 1;
+  paint-order: stroke;
+  filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.6));
+}
+.map-aircraft .rotor {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+}
+/* Missile alert: a red triangle (shape, not just colour, sets it apart from the track) */
+.map-alert span,
+.map-legend__missile {
+  display: block;
+  width: 14px;
+  height: 13px;
+  background: var(--color-alert-critical);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  cursor: pointer;
+}
+.map-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.map-legend__missile {
+  display: inline-block;
+  width: 10px;
+  height: 9px;
+  cursor: default;
+}
+.map-legend__line {
+  display: inline-block;
+  width: 16px;
+  margin-left: var(--space-md);
+  border-top: 2px dashed;
+}
+.map-legend__line--lock {
+  border-color: var(--color-alert-critical);
+}
+.map-legend__line--critical {
+  border-color: var(--color-alert-warning);
+}
