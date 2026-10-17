@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.SignalR;
+using PMDA.Api.Auth;
 using PMDA.Api.Contracts;
 using PMDA.Api.Imports;
 using PMDA.Data;
@@ -18,11 +19,14 @@ public static class FlightEndpoints
         group.MapGet("/customers", Customers).WithName("ListCustomers").WithSummary("Customers that have flights.");
 
         group.MapDelete("/{id:guid}", Delete).WithName("DeleteFlight").WithSummary("Delete one flight and its data.")
+            .RequireAuthorization(Policies.Admin)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapPost("/delete", DeleteMany).WithName("DeleteFlights").WithSummary("Delete the given flights and their data.")
+            .RequireAuthorization(Policies.Admin)
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapDelete("/", DeleteAll).WithName("DeleteAllFlights")
+            .RequireAuthorization(Policies.Admin)
             .WithSummary("Delete every flight. Requires confirm=DELETE; refused while imports run.")
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapGet("/{id:guid}", Get).WithName("GetFlight")

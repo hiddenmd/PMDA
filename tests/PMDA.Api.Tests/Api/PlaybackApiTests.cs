@@ -18,7 +18,7 @@ public sealed class PlaybackApiTests(SqlDatabase db) : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await db.ResetAsync();
-        _client = _api.CreateClient();
+        _client = await _api.CreateSignedInClientAsync();
         // 100 emitter records 10 ms apart: 0–990 ms.
         var job = (await (await _api.UploadAsync(_client, SampleFiles.Flight(events: 100))).Content.ReadFromJsonAsync<ImportJobDto>(Json))!;
         var final = await _api.WaitForFinalAsync(_client, job.Id);

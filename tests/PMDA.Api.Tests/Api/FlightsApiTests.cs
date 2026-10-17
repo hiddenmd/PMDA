@@ -17,7 +17,7 @@ public sealed class FlightsApiTests(SqlDatabase db) : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await db.ResetAsync();
-        _client = _api.CreateClient();
+        _client = await _api.CreateSignedInClientAsync();
     }
 
     public async Task DisposeAsync() => await _api.DisposeAsync();

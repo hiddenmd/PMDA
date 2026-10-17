@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.ResponseCompression;
 using PMDA.Api;
+using PMDA.Api.Auth;
 using PMDA.Api.Flights;
 using PMDA.Api.Imports;
 using PMDA.Data;
@@ -15,6 +16,7 @@ builder.Services.AddSingleton(new FlightRepository(connectionString));
 builder.Services.AddSingleton(new PlaybackRepository(connectionString));
 builder.Services.AddSingleton(new EventRepository(connectionString));
 builder.Services.AddSingleton(new SeriesRepository(connectionString));
+builder.Services.AddSingleton(new UserRepository(connectionString));
 var database = builder.Configuration.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>() ?? new DatabaseOptions();
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -33,6 +35,7 @@ builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = Compre
 builder.Services.AddOpenApi();
 
 builder.Services.AddImports(builder.Configuration);
+builder.Services.AddPmdaAuth(builder.Configuration);
 
 var app = builder.Build();
 
@@ -42,11 +45,18 @@ if (database.EnsureCreatedOnStart)
 app.UseResponseCompression();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapOpenApi();
+// The API description is public in Development (Swagger, client generation); signed-in only otherwise.
+var openApi = app.MapOpenApi();
+if (app.Environment.IsDevelopment())
+    openApi.AllowAnonymous();
 if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "PMDA API v1"));
 
+app.MapAuth();
+app.MapUsers();
 app.MapImports();
 app.MapFlights();
 app.MapPlayback();
