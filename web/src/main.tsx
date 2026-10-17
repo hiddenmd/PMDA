@@ -3,10 +3,13 @@ import '@fontsource/ibm-plex-mono/600.css'
 import '@fontsource/ibm-plex-sans/400.css'
 import '@fontsource/ibm-plex-sans/500.css'
 import '@fontsource/ibm-plex-sans/600.css'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ApiError } from './api/client'
 import { App } from './App'
+import { AuthGate } from './auth/AuthGate'
+import { authKeys } from './auth/authContext'
 import { ImportHubProvider } from './hooks/ImportHubProvider'
 import './index.css'
 import { applyTheme, applyUiSize, initialTheme, initialUiSize } from './lib/preferences'
@@ -15,7 +18,13 @@ import { applyTheme, applyUiSize, initialTheme, initialUiSize } from './lib/pref
 applyTheme(initialTheme())
 applyUiSize(initialUiSize())
 
-const queryClient = new QueryClient({
+// A 401 anywhere means the session ended: clear it and the gate shows the login screen.
+const onError = (error: unknown) => {
+  if (error instanceof ApiError && error.status === 401) queryClient.setQueryData(authKeys.me, null)
+}
+const queryClient: QueryClient = new QueryClient({
+  queryCache: new QueryCache({ onError }),
+  mutationCache: new MutationCache({ onError }),
   defaultOptions: {
     queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
   },
@@ -24,9 +33,11 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ImportHubProvider>
-        <App />
-      </ImportHubProvider>
+      <AuthGate>
+        <ImportHubProvider>
+          <App />
+        </ImportHubProvider>
+      </AuthGate>
     </QueryClientProvider>
   </StrictMode>,
 )
