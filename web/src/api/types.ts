@@ -14,3 +14,10 @@ export type ProblemDetails = Schemas['ProblemDetails']
 export const finalImportStates: readonly ImportState[] = ['Completed', 'Duplicate', 'Failed', 'Cancelled']
 
 export const isFinalImportState = (state: ImportState) => finalImportStates.includes(state)
+
+export type EventType = Schemas['EventType']
+export type PlaybackFrame = Schemas['PlaybackFrameDto']
+export type PlaybackFrames = Schemas['PlaybackFramesDto']
+export type EmitterHit = Schemas['EmitterHitDto']
+export type Position = Schemas['PositionDto']
+export type FlightOverview = Schemas['FlightOverviewDto']

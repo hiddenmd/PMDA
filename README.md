@@ -38,11 +38,31 @@ npm --prefix web run dev
 - Web client: http://localhost:5173 (proxies `/api` and `/hubs` to the API)
 - Swagger UI: http://localhost:5080/swagger, OpenAPI document at `/openapi/v1.json`
 
-Generate a test flight (`--corrupt N` adds bad records):
+## Sample recordings
+
+`tools/PMDA.SampleGen` simulates sorties (ground radars with fixed sites, scan patterns and on/off
+schedules; an aircraft route; bearing and amplitude from the geometry; chaff and flares under lock)
+and writes them in the synthetic SAMPLE format. Generate the standard set into `samples/` (git-ignored):
 
 ```bash
-dotnet run --project tools/PMDA.SampleGen -- sortie.bin --events 1000000 --corrupt 5
+dotnet run --project tools/PMDA.SampleGen -c Release -- --all samples
 ```
+
+| File | Content |
+|---|---|
+| `training-sortie.bin` | 20 min, 3 emitters, ~21 k records |
+| `dense-threat.bin` | 45 min, 30 emitters, ~150 k records |
+| `corrupt-records.bin` | 10 min, 25 corrupt records + truncated end (26 parse problems) |
+| `long-mission.bin` | 6 h, 120 emitters, ~11.7 M records (~440 MB) |
+
+`--list` shows the scenarios; `--scenario <name> <file>` writes one.
+
+## Debrief playback
+
+Select a completed flight to replay it: RWR scope (bearing around the nose, stronger signals nearer the
+centre, symbol per radar band), active emitters, countermeasures and position at the playhead, and an
+event-density timeline to scrub. Keys: Space play/pause, ←/→ step, `[` `]` slower/faster (1×–600×).
+The UI follows `design-system/pmda/MASTER.md`.
 
 ## Tests
 
