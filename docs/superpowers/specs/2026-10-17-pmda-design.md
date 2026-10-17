@@ -97,6 +97,31 @@ Web client (approved, slice 1), `web/`: Vite + React + TypeScript.
 
 Later: desktop (Avalonia, GPU chart), timeline view with WebGL chart (SciChart.js or uPlot).
 
+### Slice 2: redesign + debrief playback (approved)
+
+Visual system: `design-system/pmda/MASTER.md` (ui-ux-pro-max "Data-Dense Dashboard", dark default,
+bundled Fira Sans/Code, Lucide icons). Layout: left rail (import, flights list) + flight workspace
+(header KPIs, RWR scope, active emitters, countermeasures, position, transport bar with density strip
+and scrubber, collapsible parse problems).
+
+Playback never streams raw events (600× is ~120 000 events per real second). The server returns frames:
+- `GET /api/flights/{id}/frames?from&to&stepMs` — per step: per emitter avg frequency/PRI/PW/amplitude,
+  circular-mean bearing (`ATN2(AVG(SIN), AVG(COS))`), hit count; countermeasure counts by kind; last
+  position. `from`/`to` are offsets in ms from flight start; max 2 000 steps per request.
+- `GET /api/flights/{id}/overview?buckets=N` — event counts per type per bucket across the flight.
+The client picks `stepMs ≈ speed × 33 ms` (about 30 frames per real second).
+
+`playbackMachine` (XState): `loading → ready.{paused | playing | buffering} → ended`; events PLAY, PAUSE,
+SEEK, SET_SPEED, STEP, TICK (requestAnimationFrame clock actor). Prefetches ahead of the playhead;
+enters `buffering` when the playhead reaches the end of loaded frames; SEEK drops stale requests.
+Emitters stay active for a persistence window after their last frame (max(3 s, 4 steps) of flight time).
+Scope: canvas, 60 fps, RWR convention (stronger signal nearer the centre). Text panels ~10 Hz.
+Keyboard: Space play/pause, ←/→ step, `[` `]` speed; scrubber is a native range input.
+
+Samples: `tools/PMDA.SampleGen` simulates a mission (ground emitters with fixed sites and parameters, an
+aircraft route, geometry-derived bearing and amplitude, countermeasures on close threats) and writes the
+standard set to `samples/` (not committed): training-sortie, dense-threat, corrupt-records, long-mission.
+
 ## Section 5 — Testing (proposed)
 
 - Parsers: unit tests on hand-built byte buffers per message type and per adapter,

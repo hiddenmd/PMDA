@@ -482,3 +482,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Generated sample flight recordings (tools/PMDA.SampleGen --all samples)
+/samples/

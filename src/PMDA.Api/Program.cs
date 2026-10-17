@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.ResponseCompression;
 using PMDA.Api;
 using PMDA.Api.Flights;
 using PMDA.Api.Imports;
@@ -10,12 +12,22 @@ var connectionString = builder.Configuration.GetConnectionString(DatabaseOptions
     ?? throw new InvalidOperationException($"Connection string '{DatabaseOptions.ConnectionStringName}' is missing.");
 builder.Services.AddSingleton(new SqlConnectionString(connectionString));
 builder.Services.AddSingleton(new FlightRepository(connectionString));
+builder.Services.AddSingleton(new PlaybackRepository(connectionString));
 var database = builder.Configuration.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>() ?? new DatabaseOptions();
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSignalR()
     .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
+// Playback frames are large, repetitive JSON: compression cuts them several-fold.
+builder.Services.AddResponseCompression(o =>
+{
+    o.EnableForHttps = true; // responses carry no secrets that would make BREACH a concern
+    o.Providers.Add<BrotliCompressionProvider>();
+    o.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 builder.Services.AddOpenApi();
 
 builder.Services.AddImports(builder.Configuration);
@@ -25,6 +37,7 @@ var app = builder.Build();
 if (database.EnsureCreatedOnStart)
     await SchemaInstaller.EnsureDatabaseAsync(connectionString);
 
+app.UseResponseCompression();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
@@ -34,6 +47,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapImports();
 app.MapFlights();
+app.MapPlayback();
 
 app.Run();
 

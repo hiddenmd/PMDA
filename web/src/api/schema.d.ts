@@ -89,15 +89,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/flights/{id}/frames": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Events summarised per time step, for playback. Offsets are ms from the flight start. */
+        get: operations["GetPlaybackFrames"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/{id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Event counts per type in equal buckets across the whole flight. */
+        get: operations["GetFlightOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CountermeasureCountDto: {
+            /** Format: int16 */
+            kind: number;
+            /** Format: int32 */
+            count: number;
+        };
         DiagnosticDto: {
             /** Format: int64 */
             fileOffset: number;
             message: string;
         };
+        EmitterHitDto: {
+            /** Format: int32 */
+            emitterId: number;
+            /** Format: int32 */
+            hits: number;
+            /** Format: float */
+            frequencyMHz: number;
+            /** Format: float */
+            priUs: number;
+            /** Format: float */
+            pulseWidthUs: number;
+            /** Format: float */
+            bearingDeg: number;
+            /** Format: float */
+            amplitudeDb: number;
+        };
+        /** @enum {unknown} */
+        EventType: "Unknown" | "Emitter" | "Countermeasure" | "Navigation" | "Warning" | "System";
         FlightDetailDto: {
             /** Format: uuid */
             id: string;
@@ -121,6 +179,13 @@ export interface components {
             errorCount: number;
             /** Format: date-time */
             importedUtc: string;
+        };
+        FlightOverviewDto: {
+            /** Format: int64 */
+            spanMs: number;
+            /** Format: int32 */
+            buckets: number;
+            series: components["schemas"]["OverviewSeriesDto"][];
         };
         FlightPageDto: {
             items: components["schemas"]["FlightSummaryDto"][];
@@ -160,8 +225,6 @@ export interface components {
                 [key: string]: string[];
             };
         };
-        /** Format: binary */
-        IFormFile: string;
         ImportJobDto: {
             /** Format: uuid */
             id: string;
@@ -191,6 +254,34 @@ export interface components {
         };
         /** @enum {unknown} */
         ImportState: "Queued" | "Running" | "Completed" | "Duplicate" | "Failed" | "Cancelled";
+        OverviewSeriesDto: {
+            eventType: components["schemas"]["EventType"];
+            counts: number[];
+        };
+        PlaybackFrameDto: {
+            /** Format: int64 */
+            offsetMs: number;
+            emitters: components["schemas"]["EmitterHitDto"][];
+            countermeasures: components["schemas"]["CountermeasureCountDto"][];
+            position: components["schemas"]["PositionDto"];
+        };
+        PlaybackFramesDto: {
+            /** Format: int64 */
+            fromMs: number;
+            /** Format: int64 */
+            toMs: number;
+            /** Format: int64 */
+            stepMs: number;
+            frames: components["schemas"]["PlaybackFrameDto"][];
+        };
+        PositionDto: {
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+            /** Format: float */
+            altM: number;
+        } | null;
         ProblemDetails: {
             type?: string | null;
             title?: string | null;
@@ -238,7 +329,8 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": {
-                    file: components["schemas"]["IFormFile"];
+                    /** Format: binary */
+                    file: string;
                 };
             };
         };
@@ -435,6 +527,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiagnosticDto"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPlaybackFrames: {
+        parameters: {
+            query: {
+                fromMs: number;
+                toMs: number;
+                stepMs: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackFramesDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFlightOverview: {
+        parameters: {
+            query?: {
+                buckets?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlightOverviewDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Not Found */
