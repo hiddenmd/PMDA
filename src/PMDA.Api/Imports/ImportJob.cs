@@ -13,6 +13,7 @@ public enum CancelRequest
 
 public sealed record ImportJobSnapshot(
     Guid Id,
+    long Version,
     string FileName,
     long SizeBytes,
     ImportState State,
@@ -35,6 +36,7 @@ public sealed class ImportJob
     private readonly TimeProvider _time;
 
     private ImportState _state = ImportState.Queued;
+    private long _version;
     private DateTime? _startedUtc, _finishedUtc;
     private ImportProgress? _progress;
     private Guid? _flightId;
@@ -85,6 +87,7 @@ public sealed class ImportJob
             if (_state != ImportState.Running)
                 throw new InvalidOperationException($"Cannot report progress while {_state}.");
             _progress = progress;
+            _version++;
         }
         Changed?.Invoke(this);
     }
@@ -129,7 +132,7 @@ public sealed class ImportJob
     public ImportJobSnapshot Snapshot()
     {
         lock (_gate)
-            return new ImportJobSnapshot(Id, FileName, SizeBytes, _state, CreatedUtc, _startedUtc, _finishedUtc, _progress, _flightId, _failureReason);
+            return new ImportJobSnapshot(Id, _version, FileName, SizeBytes, _state, CreatedUtc, _startedUtc, _finishedUtc, _progress, _flightId, _failureReason);
     }
 
     private DateTime Now => _time.GetUtcNow().UtcDateTime;
@@ -147,6 +150,7 @@ public sealed class ImportJob
             throw new InvalidOperationException($"Import {Id} cannot go from {_state} to {to}.");
         apply();
         _state = to;
+        _version++;
         if (ImportStates.IsFinal(to))
             _finishedUtc = Now;
     }
