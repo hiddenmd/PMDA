@@ -13,6 +13,8 @@ var connectionString = builder.Configuration.GetConnectionString(DatabaseOptions
 builder.Services.AddSingleton(new SqlConnectionString(connectionString));
 builder.Services.AddSingleton(new FlightRepository(connectionString));
 builder.Services.AddSingleton(new PlaybackRepository(connectionString));
+builder.Services.AddSingleton(new EventRepository(connectionString));
+builder.Services.AddSingleton(new SeriesRepository(connectionString));
 var database = builder.Configuration.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>() ?? new DatabaseOptions();
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -48,6 +50,7 @@ if (app.Environment.IsDevelopment())
 app.MapImports();
 app.MapFlights();
 app.MapPlayback();
+app.MapDataViews();
 
 app.Run();
 

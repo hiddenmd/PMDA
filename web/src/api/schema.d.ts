@@ -46,8 +46,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Imported flights, newest first. */
+        /** Imported flights, filtered and sorted. */
         get: operations["ListFlights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Customers that have flights. */
+        get: operations["ListCustomers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -123,11 +140,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/flights/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Raw events of one type in a time window (max 1 h), paged by sequence number. */
+        get: operations["GetFlightEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/{id}/series/parameter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An emitter parameter over time, per emitter, downsampled to buckets. */
+        get: operations["GetParameterSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/{id}/series/scatter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One emitter parameter against another, per emitter and bucket. */
+        get: operations["GetScatterSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/{id}/series/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Altitude over time with countermeasure releases. */
+        get: operations["GetProfileSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/{id}/series/rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Events per bucket by type. */
+        get: operations["GetRateSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         CountermeasureCountDto: {
+            /** Format: int16 */
+            kind: number;
+            /** Format: int32 */
+            count: number;
+        };
+        CountermeasureMarkDto: {
+            /** Format: int64 */
+            t: number;
             /** Format: int16 */
             kind: number;
             /** Format: int32 */
@@ -153,6 +263,57 @@ export interface components {
             bearingDeg: number;
             /** Format: float */
             amplitudeDb: number;
+        };
+        EmitterScatterDto: {
+            /** Format: int32 */
+            emitterId: number;
+            x: number[];
+            y: number[];
+        };
+        EmitterSeriesDto: {
+            /** Format: int32 */
+            emitterId: number;
+            t: number[];
+            v: number[];
+        };
+        EventPageDto: {
+            type: components["schemas"]["EventType"];
+            /** Format: int64 */
+            fromMs: number;
+            /** Format: int64 */
+            toMs: number;
+            rows: components["schemas"]["EventRowDto"][];
+            hasMore: boolean;
+            /** Format: int64 */
+            nextAfterSeq: number | null;
+        };
+        EventRowDto: {
+            /** Format: int64 */
+            seq: number;
+            /** Format: int64 */
+            offsetMs: number;
+            /** Format: int16 */
+            subType: number | null;
+            /** Format: int32 */
+            emitterId: number | null;
+            /** Format: float */
+            frequencyMHz: number | null;
+            /** Format: float */
+            priUs: number | null;
+            /** Format: float */
+            pulseWidthUs: number | null;
+            /** Format: float */
+            bearingDeg: number | null;
+            /** Format: float */
+            amplitudeDb: number | null;
+            /** Format: double */
+            lat: number | null;
+            /** Format: double */
+            lon: number | null;
+            /** Format: float */
+            altM: number | null;
+            /** Format: int32 */
+            count: number | null;
         };
         /** @enum {unknown} */
         EventType: "Unknown" | "Emitter" | "Countermeasure" | "Navigation" | "Warning" | "System";
@@ -258,6 +419,11 @@ export interface components {
             eventType: components["schemas"]["EventType"];
             counts: number[];
         };
+        ParameterSeriesDto: {
+            param: components["schemas"]["SeriesParam"];
+            window: components["schemas"]["SeriesWindowDto"];
+            series: components["schemas"]["EmitterSeriesDto"][];
+        };
         PlaybackFrameDto: {
             /** Format: int64 */
             offsetMs: number;
@@ -289,6 +455,37 @@ export interface components {
             status?: number | null;
             detail?: string | null;
             instance?: string | null;
+        };
+        ProfileSeriesDto: {
+            window: components["schemas"]["SeriesWindowDto"];
+            t: number[];
+            altM: number[];
+            countermeasures: components["schemas"]["CountermeasureMarkDto"][];
+        };
+        RateSeriesDto: {
+            window: components["schemas"]["SeriesWindowDto"];
+            t: number[];
+            series: components["schemas"]["RateSeriesItemDto"][];
+        };
+        RateSeriesItemDto: {
+            eventType: components["schemas"]["EventType"];
+            counts: number[];
+        };
+        ScatterSeriesDto: {
+            x: components["schemas"]["SeriesParam"];
+            y: components["schemas"]["SeriesParam"];
+            window: components["schemas"]["SeriesWindowDto"];
+            series: components["schemas"]["EmitterScatterDto"][];
+        };
+        /** @enum {unknown} */
+        SeriesParam: "Frequency" | "Pri" | "PulseWidth" | "Amplitude" | "Bearing";
+        SeriesWindowDto: {
+            /** Format: int64 */
+            fromMs: number;
+            /** Format: int64 */
+            toMs: number;
+            /** Format: int64 */
+            bucketMs: number;
         };
     };
     responses: never;
@@ -447,10 +644,16 @@ export interface operations {
     ListFlights: {
         parameters: {
             query?: {
-                page?: number;
-                pageSize?: number;
-                customerId?: string;
-                tail?: string;
+                Page?: number;
+                PageSize?: number;
+                CustomerId?: string;
+                Tail?: string;
+                Mission?: string;
+                Status?: "Importing" | "Completed" | "Failed" | null;
+                StartFrom?: string;
+                StartTo?: string;
+                HasProblems?: boolean;
+                Sort?: "ImportedNewest" | "StartNewest" | "StartOldest" | "Tail" | "MostEvents";
             };
             header?: never;
             path?: never;
@@ -474,6 +677,26 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    ListCustomers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
         };
@@ -604,6 +827,231 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlightOverviewDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFlightEvents: {
+        parameters: {
+            query: {
+                type: components["schemas"]["EventType"];
+                fromMs: number;
+                toMs: number;
+                afterSeq?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPageDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetParameterSeries: {
+        parameters: {
+            query: {
+                param: components["schemas"]["SeriesParam"];
+                fromMs?: number;
+                toMs?: number;
+                buckets?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParameterSeriesDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetScatterSeries: {
+        parameters: {
+            query: {
+                x: components["schemas"]["SeriesParam"];
+                y: components["schemas"]["SeriesParam"];
+                fromMs?: number;
+                toMs?: number;
+                buckets?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScatterSeriesDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProfileSeries: {
+        parameters: {
+            query?: {
+                fromMs?: number;
+                toMs?: number;
+                buckets?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileSeriesDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRateSeries: {
+        parameters: {
+            query?: {
+                fromMs?: number;
+                toMs?: number;
+                buckets?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateSeriesDto"];
                 };
             };
             /** @description Bad Request */

@@ -13,10 +13,26 @@ public sealed class FlightRepository(string connectionString)
         SourceName, Status, FailureReason, EventCount, ErrorCount, ImportedUtc
         """;
 
+    // CHARINDEX instead of LIKE: user text is matched literally, no wildcard escaping needed.
     private const string FilterSql = """
         WHERE (@CustomerId IS NULL OR CustomerId = @CustomerId)
-          AND (@Tail IS NULL OR Tail = @Tail)
+          AND (@Tail IS NULL OR CHARINDEX(@Tail, Tail) > 0)
+          AND (@Mission IS NULL OR CHARINDEX(@Mission, MissionId) > 0)
+          AND (@Status IS NULL OR Status = @Status)
+          AND (@StartFrom IS NULL OR StartUtc >= @StartFrom)
+          AND (@StartTo IS NULL OR StartUtc < @StartTo)
+          AND (@HasProblems IS NULL OR (@HasProblems = 1 AND ErrorCount > 0) OR (@HasProblems = 0 AND ErrorCount = 0))
         """;
+
+    /// <summary>Whitelisted ORDER BY clauses; the user only ever picks a key.</summary>
+    private static readonly Dictionary<FlightSort, string> OrderBy = new()
+    {
+        [FlightSort.ImportedNewest] = "ImportedUtc DESC, FlightId",
+        [FlightSort.StartNewest] = "StartUtc DESC, FlightId",
+        [FlightSort.StartOldest] = "StartUtc ASC, FlightId",
+        [FlightSort.Tail] = "Tail ASC, StartUtc DESC, FlightId",
+        [FlightSort.MostEvents] = "EventCount DESC, FlightId",
+    };
 
     public async Task<PagedResult<FlightRecord>> ListAsync(FlightQuery query, CancellationToken ct)
     {
@@ -27,13 +43,18 @@ public sealed class FlightRepository(string connectionString)
         {
             query.CustomerId,
             query.Tail,
+            query.Mission,
+            Status = query.Status is { } status ? (byte?)status : null,
+            query.StartFrom,
+            query.StartTo,
+            query.HasProblems,
             Skip = (query.Page - 1) * query.PageSize,
             Take = query.PageSize,
         };
         var sql = $"""
             SELECT COUNT_BIG(*) FROM dbo.Flight {FilterSql};
             SELECT {FlightColumns} FROM dbo.Flight {FilterSql}
-            ORDER BY ImportedUtc DESC, FlightId
+            ORDER BY {OrderBy[query.Sort]}
             OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
             """;
 
@@ -42,6 +63,15 @@ public sealed class FlightRepository(string connectionString)
         var total = await grid.ReadSingleAsync<long>();
         var items = (await grid.ReadAsync<FlightRecord>()).Select(AsUtc).ToList();
         return new PagedResult<FlightRecord>(items, query.Page, query.PageSize, total);
+    }
+
+    /// <summary>Customers that have flights, for filter choices.</summary>
+    public async Task<IReadOnlyList<string>> CustomersAsync(CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connectionString);
+        var rows = await conn.QueryAsync<string>(new CommandDefinition(
+            "SELECT DISTINCT CustomerId FROM dbo.Flight ORDER BY CustomerId;", cancellationToken: ct));
+        return rows.AsList();
     }
 
     public async Task<FlightRecord?> GetAsync(Guid flightId, CancellationToken ct)

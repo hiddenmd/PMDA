@@ -25,6 +25,26 @@ public sealed record FlightRecord(
 
 public sealed record DiagnosticRecord(long FileOffset, string Message);
 
-public sealed record FlightQuery(int Page = 1, int PageSize = 50, string? CustomerId = null, string? Tail = null);
+public enum FlightSort
+{
+    ImportedNewest,
+    StartNewest,
+    StartOldest,
+    Tail,
+    MostEvents,
+}
+
+/// <summary>Flight list filters. Text filters match any part of the value; null means "any".</summary>
+public sealed record FlightQuery(
+    int Page = 1,
+    int PageSize = 50,
+    string? CustomerId = null,
+    string? Tail = null,
+    string? Mission = null,
+    FlightStatus? Status = null,
+    DateTime? StartFrom = null,
+    DateTime? StartTo = null,
+    bool? HasProblems = null,
+    FlightSort Sort = FlightSort.ImportedNewest);
 
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, long Total);
