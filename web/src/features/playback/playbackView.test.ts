@@ -51,6 +51,26 @@ describe('playback view', () => {
     ])
   })
 
+  it('measures hit rate and how long an emitter has been present', () => {
+    const frames: PlaybackFrame[] = []
+    // Emitter 1: seen every 100 ms from 0 to 10 s with 2 hits each (20/s). Emitter 2: from 9.5 s.
+    // Emitter 3: seen at 1 s, gone, back at 9.8 s (gap > 3 s persistence: presence restarts).
+    for (let t = 0; t <= 10_000; t += 100) {
+      const emitters = [{ ...hit(1), hits: 2 }]
+      if (t >= 9_500) emitters.push(hit(2))
+      if (t === 1_000 || t >= 9_800) emitters.push(hit(3))
+      frames.push(frame(t, { emitters }))
+    }
+
+    const view = viewAt(frames, 10_000, 33)
+    const byId = new Map(view.emitters.map((e) => [e.emitterId, e]))
+
+    expect(byId.get(1)!.hitsPerSecond).toBe(20)
+    expect(byId.get(1)!.presentForMs).toBe(10_000)
+    expect(byId.get(2)!.presentForMs).toBe(500)
+    expect(byId.get(3)!.presentForMs).toBe(200)
+  })
+
   it('logs recent countermeasures newest first and the latest position', () => {
     const frames = [
       frame(0, { position: { lat: 1, lon: 1, altM: 100 } }),

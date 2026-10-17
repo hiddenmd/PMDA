@@ -447,3 +447,8 @@
 .chip--deleting {
   color: var(--color-muted-foreground);
 }
+
+.threat-critical {
+  color: var(--color-destructive);
+  font-weight: var(--fw-medium);
+}

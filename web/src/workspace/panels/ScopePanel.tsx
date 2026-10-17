@@ -1,25 +1,47 @@
-import { Scope } from '../../features/playback/Scope'
+import { useMemo } from 'react'
 import { usePlaybackState } from '../../features/playback/usePlayback'
+import { RwrScope } from '../../features/rwr/RwrScope'
+import { buildThreats } from '../../features/rwr/symbology'
+import { useReleases, useSymbology } from '../../features/rwr/useSymbology'
 import { useWorkspace, type PlaybackActor } from '../workspaceContext'
 import { NoPlayback } from './EmptyPanel'
 
 export function ScopePanel() {
-  const { playback, flightLoading } = useWorkspace()
-  if (!playback) return <NoPlayback loading={flightLoading} />
-  return <ScopeView actor={playback.actor} />
+  const { playback, flight, flightLoading } = useWorkspace()
+  if (!playback || !flight) return <NoPlayback loading={flightLoading} />
+  return <ScopeView actor={playback.actor} flightId={flight.id} customerId={flight.customerId} />
 }
 
-function ScopeView({ actor }: { actor: PlaybackActor }) {
+function ScopeView({ actor, flightId, customerId }: { actor: PlaybackActor; flightId: string; customerId: string }) {
   const { view } = usePlaybackState(actor)
-  const { emitters, position } = view
+  const { profiles, profile, choice, choose, error } = useSymbology()
+  const releases = useReleases(flightId)
+  const threats = useMemo(() => (profile ? buildThreats(view.emitters, profile) : []), [view.emitters, profile])
+  const { position } = view
+
   const label =
-    emitters.length === 0
-      ? 'RWR scope: no emitters at this moment'
-      : `RWR scope: ${emitters.length} emitter${emitters.length === 1 ? '' : 's'}, strongest ${emitters[0].emitterId} at ${emitters[0].bearingDeg.toFixed(0)} degrees`
+    threats.length === 0
+      ? 'RWR: no threats at this moment'
+      : `RWR: ${threats.length} threat${threats.length === 1 ? '' : 's'}; priority ${threats[0].code} (${threats[0].threatClass}) at ${threats[0].bearingDeg.toFixed(0)} degrees${threats[0].locked ? ', tracking' : ''}`
 
   return (
     <div className="scope-panel">
-      <Scope actor={actor} label={label} />
+      <div className="panel-toolbar" style={{ margin: 'calc(-1 * var(--space-md)) calc(-1 * var(--space-md)) 0' }}>
+        <label className="small muted" htmlFor={`symbology-${flightId}`}>
+          Symbology
+        </label>
+        <select id={`symbology-${flightId}`} className="select select--compact" value={choice ?? ''} onChange={(e) => choose(e.target.value || null)}>
+          <option value="">Auto: {customerId}'s profile</option>
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        {profile && <span className="muted small">{profile.name}</span>}
+      </div>
+      {error && <div className="empty">Could not load symbology.</div>}
+      {profile ? <RwrScope actor={actor} profile={profile} releases={releases.data ?? []} label={label} /> : !error && <div className="empty">Loading symbology…</div>}
       <dl className="readout" aria-label="Aircraft position">
         <div>
           <dt>Latitude</dt>

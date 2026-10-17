@@ -72,6 +72,27 @@ save your own, reset. Settings: dark/light theme and UI size. Graph panels (as m
 parameter vs time, bearing vs time, flight profile, event rate, parameter vs parameter — drag to zoom,
 click to seek. Message tables show each message type around the playhead.
 
+## RWR symbology (per customer platform)
+
+The RWR scope is drawn from a **symbology profile**: `src/PMDA.Api/symbology/<CustomerId>.json`.
+Flights use their customer's profile (or `default.json`); analysts can pick another in the scope panel.
+A profile defines:
+
+- **display** - phosphor and background colours, bezel, range rings, tick spacing, wing marks, legends
+  around the screen (e.g. `ALR-67 RCV`), countermeasure loads (the `C F` counter shows what is left),
+  and how many symbols may show at once;
+- **placement** - `Lethality` (rings for critical / lethal / non-lethal, like a real RWR) or `Amplitude`;
+- **threats** - the threat library, checked in order: frequency / PRI / pulse-width ranges or explicit
+  emitter ids -> display code (e.g. `08`), class (Sam, Aaa, Airborne, EarlyWarning, Naval, Unknown) and
+  lethality; `unknown` is used when nothing matches;
+- **symbols** - decoration per class (airborne hat, ship boat, box...), the priority mark, the lock mark
+  and its detections-per-second threshold, and how long a new threat blinks.
+
+Profiles are validated at start-up; a mistake stops the server with the file and problem named.
+The shipped `SAMPLE` (fighter, ALR-67 style), `HELO-DEMO` (helicopter, APR-39 style) and `default`
+profiles are **approximations of generic public formats, not any customer's real symbology**. To add a
+customer, copy one to `<CustomerId>.json`, set `"id"` to the same name and edit it; restart the API.
+
 ## Debrief playback
 
 Select a completed flight to replay it: RWR scope (bearing around the nose, stronger signals nearer the

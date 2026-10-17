@@ -10,6 +10,9 @@ export interface WorkspaceValue {
   selectFlight: (id: string | null) => void
   flight: FlightDetail | undefined
   flightLoading: boolean
+  /** RWR symbology chosen by the analyst; null = the flight customer's own profile. */
+  symbologyId: string | null
+  setSymbologyId: (id: string | null) => void
   /** Playback for the selected flight; null until it is a completed flight with events. */
   playback: { actor: PlaybackActor; durationMs: number; startUtc: string } | null
 }

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createActor } from 'xstate'
 import { ApiError } from '../api/client'
+import { storage } from '../lib/preferences'
 import { useFlight } from '../hooks/useFlights'
 import { playbackMachine } from '../machines/playbackMachine'
 import { usePlaybackShortcuts } from '../features/playback/usePlayback'
 import { playbackDurationMs, WorkspaceContext, type PlaybackActor, type WorkspaceValue } from './workspaceContext'
 
 const FLIGHT_PARAM = 'flight'
+const SYMBOLOGY_KEY = 'pmda-symbology'
 
 /** Holds the current playback actor; React reads it with useSyncExternalStore. */
 function createPlaybackStore() {
@@ -47,6 +49,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [flightId, setFlightId] = useState<string | null>(flightFromUrl)
   const flight = useFlight(flightId)
   const [store] = useState(createPlaybackStore)
+  const [symbologyId, setSymbologyIdState] = useState<string | null>(() => storage.get(SYMBOLOGY_KEY))
+  const setSymbologyId = useCallback((id: string | null) => {
+    setSymbologyIdState(id)
+    if (id) storage.set(SYMBOLOGY_KEY, id)
+    else storage.remove(SYMBOLOGY_KEY)
+  }, [])
   const actor = useSyncExternalStore(store.subscribe, store.get)
 
   const selectFlight = useCallback((id: string | null) => {
@@ -77,11 +85,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => ({
       flightId: notFound ? null : flightId,
       selectFlight,
+      symbologyId,
+      setSymbologyId,
       flight: flight.data && flight.data.id === flightId ? flight.data : undefined,
       flightLoading: flightId !== null && flight.isPending,
       playback: actor && playable ? { actor, durationMs, startUtc: playable.startUtc } : null,
     }),
-    [flightId, notFound, selectFlight, flight.data, flight.isPending, actor, playable, durationMs],
+    [flightId, notFound, selectFlight, symbologyId, setSymbologyId, flight.data, flight.isPending, actor, playable, durationMs],
   )
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
