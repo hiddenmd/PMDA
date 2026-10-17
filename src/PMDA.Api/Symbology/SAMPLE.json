@@ -1,0 +1,43 @@
+// Fixed-wing fighter, ALR-67 style. Starter profile: an approximation of a generic public format,
+// NOT any customer's real symbology. Copy and edit per customer: symbology/<CustomerId>.json.
+{
+  "id": "SAMPLE",
+  "name": "Fixed-wing fighter (ALR-67 style)",
+  "platform": "FixedWing",
+  "display": {
+    "phosphor": "#5cff6a",
+    "background": "#030604",
+    "bezel": "#1a1c1f",
+    "rings": [0.58, 1.0],
+    "ownshipCircle": 0.17,
+    "tickEveryDeg": 30,
+    "wingMarks": true,
+    "maxSymbols": 16,
+    "countermeasures": { "chaff": 30, "flares": 14 },
+    "legends": [
+      { "position": "TopLeft", "text": "ASPJ", "sub": "OFF" },
+      { "position": "Top", "text": "ALR-67", "sub": "RCV" },
+      { "position": "TopRight", "text": "ALE-47", "sub": "MAN 1", "boxed": true },
+      { "position": "BottomLeft", "text": "NORM", "sub": "OFFSET" },
+      { "position": "Bottom", "text": "MODE", "sub": "4454" },
+      { "position": "BottomRight", "text": "ARM" }
+    ]
+  },
+  "placement": { "mode": "Lethality", "critical": 0.38, "lethal": 0.76, "nonLethal": 0.92 },
+  "threats": [
+    { "code": "29", "class": "Airborne", "lethality": "Critical", "description": "Airborne interceptor (demo ids)", "emitterIds": [7, 19, 33, 61] },
+    { "code": "SH", "class": "Naval", "lethality": "Lethal", "description": "Ship-borne radar (demo ids)", "emitterIds": [12, 44] },
+    { "code": "08", "class": "Sam", "lethality": "Critical", "description": "SAM fire control, X band", "frequencyMHz": [9000, 10600], "priUs": [100, 400] },
+    { "code": "06", "class": "Sam", "lethality": "Lethal", "description": "SAM acquisition, C band", "frequencyMHz": [5300, 5900], "priUs": [700, 1500] },
+    { "code": "A", "class": "Aaa", "lethality": "Critical", "description": "AAA fire control, Ku band", "frequencyMHz": [13500, 17500], "priUs": [40, 160] },
+    { "code": "S", "class": "EarlyWarning", "lethality": "NonLethal", "description": "Search / early warning, S band", "frequencyMHz": [2700, 3300] }
+  ],
+  "unknown": { "code": "U", "class": "Unknown", "lethality": "NonLethal", "description": "Not in the library" },
+  "symbols": {
+    "byClass": { "Sam": "None", "Aaa": "None", "Airborne": "Hat", "EarlyWarning": "None", "Naval": "Boat", "Unknown": "None" },
+    "priority": "Shield",
+    "lock": "Circle",
+    "lockMinHitsPerSecond": 12,
+    "newThreatMs": 2500
+  }
+}

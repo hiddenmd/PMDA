@@ -1,0 +1,28 @@
+// Generic fallback for customers without their own profile: classifies by radar band only.
+{
+  "id": "default",
+  "name": "Generic (by radar band)",
+  "platform": "FixedWing",
+  "display": {
+    "phosphor": "#4ee08a",
+    "background": "#040705",
+    "rings": [0.33, 0.66, 1.0],
+    "tickEveryDeg": 30,
+    "wingMarks": false,
+    "maxSymbols": 16,
+    "legends": [{ "position": "Top", "text": "RWR", "sub": "GENERIC" }]
+  },
+  "placement": { "mode": "Amplitude" },
+  "threats": [
+    { "code": "X", "class": "Sam", "lethality": "Critical", "description": "X band", "frequencyMHz": [8000, 12000] },
+    { "code": "K", "class": "Aaa", "lethality": "Critical", "description": "Ku band", "frequencyMHz": [12000, 18000] },
+    { "code": "C", "class": "Sam", "lethality": "Lethal", "description": "C band", "frequencyMHz": [4000, 8000] },
+    { "code": "S", "class": "EarlyWarning", "lethality": "NonLethal", "description": "S band", "frequencyMHz": [2000, 4000] }
+  ],
+  "unknown": { "code": "U", "class": "Unknown", "lethality": "NonLethal" },
+  "symbols": {
+    "byClass": { "Sam": "None", "Aaa": "None", "Airborne": "Hat", "EarlyWarning": "None", "Naval": "Boat", "Unknown": "None" },
+    "priority": "Diamond",
+    "lock": "Circle"
+  }
+}

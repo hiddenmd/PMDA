@@ -19,4 +19,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- RWR symbology profiles, one per customer platform; editable after deployment. -->
+    <None Update="symbology\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

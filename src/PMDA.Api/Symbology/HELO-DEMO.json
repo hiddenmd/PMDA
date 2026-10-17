@@ -1,0 +1,40 @@
+// Helicopter, APR-39 style. Starter profile: an approximation of a generic public format,
+// NOT any customer's real symbology.
+{
+  "id": "HELO-DEMO",
+  "name": "Helicopter (APR-39 style)",
+  "platform": "Helicopter",
+  "display": {
+    "phosphor": "#ffb21f",
+    "background": "#070500",
+    "bezel": "#1c1a17",
+    "rings": [0.5, 1.0],
+    "ownshipCircle": 0.15,
+    "tickEveryDeg": 45,
+    "wingMarks": false,
+    "maxSymbols": 8,
+    "countermeasures": { "chaff": 30, "flares": 60 },
+    "legends": [
+      { "position": "TopLeft", "text": "APR-39" },
+      { "position": "TopRight", "text": "CMDS", "sub": "SEMI" },
+      { "position": "BottomLeft", "text": "OPER" },
+      { "position": "BottomRight", "text": "VOL", "sub": "3" }
+    ]
+  },
+  "placement": { "mode": "Amplitude" },
+  "threats": [
+    { "code": "F", "class": "Airborne", "lethality": "Critical", "description": "Fighter radar (demo ids)", "emitterIds": [7, 19, 33, 61] },
+    { "code": "S3", "class": "Sam", "lethality": "Critical", "description": "SAM tracking", "frequencyMHz": [9000, 10600], "priUs": [100, 400] },
+    { "code": "S2", "class": "Sam", "lethality": "Lethal", "description": "SAM acquisition", "frequencyMHz": [5300, 5900] },
+    { "code": "G", "class": "Aaa", "lethality": "Critical", "description": "Gun radar", "frequencyMHz": [13500, 17500] },
+    { "code": "R", "class": "EarlyWarning", "lethality": "NonLethal", "description": "Search radar", "frequencyMHz": [2700, 3300] }
+  ],
+  "unknown": { "code": "?", "class": "Unknown", "lethality": "NonLethal" },
+  "symbols": {
+    "byClass": { "Sam": "Box", "Aaa": "None", "Airborne": "Hat", "EarlyWarning": "None", "Naval": "Boat", "Unknown": "None" },
+    "priority": "Diamond",
+    "lock": "Circle",
+    "lockMinHitsPerSecond": 12,
+    "newThreatMs": 3000
+  }
+}

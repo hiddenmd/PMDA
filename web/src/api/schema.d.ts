@@ -390,6 +390,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/symbology": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Available RWR symbology profiles. */
+        get: operations["ListSymbologyProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/symbology/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One symbology profile by id. */
+        get: operations["GetSymbologyProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/symbology/customer/{customerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The profile a customer's flights use (the default when the customer has none). */
+        get: operations["GetCustomerSymbology"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -408,6 +459,12 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        CountermeasureLoad: {
+            /** Format: int32 */
+            chaff: number;
+            /** Format: int32 */
+            flares: number;
+        } | null;
         CountermeasureMarkDto: {
             /** Format: int64 */
             t: number;
@@ -440,6 +497,21 @@ export interface components {
             /** Format: int64 */
             fileOffset: number;
             message: string;
+        };
+        DisplayStyle: {
+            phosphor: string;
+            background: string;
+            bezel?: string;
+            rings: number[];
+            /** Format: double */
+            ownshipCircle?: number;
+            /** Format: int32 */
+            tickEveryDeg?: number;
+            wingMarks?: boolean;
+            legends?: components["schemas"]["Legend"][];
+            countermeasures?: components["schemas"]["CountermeasureLoad"];
+            /** Format: int32 */
+            maxSymbols?: number;
         };
         EmitterHitDto: {
             /** Format: int32 */
@@ -608,6 +680,18 @@ export interface components {
         };
         /** @enum {unknown} */
         ImportState: "Queued" | "Running" | "Completed" | "Duplicate" | "Failed" | "Cancelled";
+        Legend: {
+            position: components["schemas"]["LegendPosition"];
+            text: string;
+            /** @default null */
+            sub: string | null;
+            /** @default false */
+            boxed: boolean;
+        };
+        /** @enum {unknown} */
+        LegendPosition: "TopLeft" | "Top" | "TopRight" | "BottomLeft" | "Bottom" | "BottomRight";
+        /** @enum {unknown} */
+        Lethality: "Critical" | "Lethal" | "NonLethal";
         LoginRequest: {
             userName: string;
             password: string;
@@ -621,6 +705,19 @@ export interface components {
             window: components["schemas"]["SeriesWindowDto"];
             series: components["schemas"]["EmitterSeriesDto"][];
         };
+        Placement: {
+            mode?: components["schemas"]["PlacementMode"];
+            /** Format: double */
+            critical?: number;
+            /** Format: double */
+            lethal?: number;
+            /** Format: double */
+            nonLethal?: number;
+        };
+        /** @enum {unknown} */
+        PlacementMode: "Lethality" | "Amplitude";
+        /** @enum {unknown} */
+        Platform: "FixedWing" | "Helicopter";
         PlaybackFrameDto: {
             /** Format: int64 */
             offsetMs: number;
@@ -691,6 +788,46 @@ export interface components {
             userName: string;
             displayName: string;
             password: string;
+        };
+        SymbologyProfile: {
+            id: string;
+            name: string;
+            platform?: components["schemas"]["Platform"];
+            display: components["schemas"]["DisplayStyle"];
+            placement: components["schemas"]["Placement"];
+            threats: components["schemas"]["ThreatRule"][];
+            unknown: components["schemas"]["ThreatRule"];
+            symbols: components["schemas"]["SymbolSet"];
+        };
+        SymbologySummaryDto: {
+            id: string;
+            name: string;
+            platform: components["schemas"]["Platform"];
+        };
+        SymbolSet: {
+            byClass: {
+                [key: string]: components["schemas"]["SymbolShape"];
+            };
+            priority?: components["schemas"]["SymbolShape"];
+            lock?: components["schemas"]["SymbolShape"];
+            /** Format: double */
+            lockMinHitsPerSecond?: number;
+            /** Format: int32 */
+            newThreatMs?: number;
+        };
+        /** @enum {unknown} */
+        SymbolShape: "None" | "Hat" | "Boat" | "Diamond" | "Circle" | "Box" | "Shield";
+        /** @enum {unknown} */
+        ThreatClass: "Sam" | "Aaa" | "Airborne" | "EarlyWarning" | "Naval" | "Unknown";
+        ThreatRule: {
+            code: string;
+            class: components["schemas"]["ThreatClass"];
+            lethality?: components["schemas"]["Lethality"];
+            description?: string | null;
+            frequencyMHz?: number[] | null;
+            priUs?: number[] | null;
+            pulseWidthUs?: number[] | null;
+            emitterIds?: number[] | null;
         };
         UpdateUserRequest: {
             displayName: string;
@@ -1763,6 +1900,79 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListSymbologyProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SymbologySummaryDto"][];
+                };
+            };
+        };
+    };
+    GetSymbologyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SymbologyProfile"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCustomerSymbology: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SymbologyProfile"];
                 };
             };
         };

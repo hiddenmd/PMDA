@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.ResponseCompression;
 using PMDA.Api;
 using PMDA.Api.Auth;
+using PMDA.Api.Symbology;
 using PMDA.Api.Flights;
 using PMDA.Api.Imports;
 using PMDA.Data;
@@ -36,10 +37,15 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddImports(builder.Configuration);
 builder.Services.AddPmdaAuth(builder.Configuration);
+builder.Services.AddOptions<SymbologyOptions>().Bind(builder.Configuration.GetSection(SymbologyOptions.Section));
+builder.Services.AddSingleton<SymbologyCatalog>();
 builder.Services.AddSingleton<FlightPurger>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FlightPurger>());
 
 var app = builder.Build();
+
+// Load and validate RWR symbology now: a bad profile file should stop start-up, not a debrief.
+app.Services.GetRequiredService<SymbologyCatalog>();
 
 if (database.EnsureCreatedOnStart)
     await SchemaInstaller.EnsureDatabaseAsync(connectionString);
@@ -63,6 +69,7 @@ app.MapImports();
 app.MapFlights();
 app.MapPlayback();
 app.MapDataViews();
+app.MapSymbology();
 
 app.Run();
 
