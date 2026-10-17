@@ -135,3 +135,26 @@ standard set to `samples/` (not committed): training-sortie, dense-threat, corru
 
 - Real ICDs for customers A/B/C (until then a clearly-labelled synthetic sample format is used for tests).
 - Full list of event types and emitter parameters.
+
+### Slice 3: pro workspace, data views, management, login (approved 2026-10-17)
+
+Visual choices (made with the brainstorming companion): **Graphite + Blue** palette (dark default, light
+available), **docking workspace**, **IBM Plex Sans + IBM Plex Mono**. Design system: `design-system/pmda/MASTER.md` v2.
+
+1. Workspace: dockview (tabs, splits, floating groups, pop-out windows, draggable splitters). Panels:
+   Flights, Flight info, RWR scope, Active emitters, Message tables, Graph (many), Countermeasures,
+   Position; the playback bar stays docked at the bottom. Layout presets "Debrief" and "Analysis",
+   save / load / reset named layouts (stored per user in the browser). Type scale 11/12/13/15/20 px
+   on tokens, UI size Compact 0.9 / Default 1 / Large 1.15. Header: brand, connection, add-panel menu,
+   settings (theme, UI size, layouts), user menu.
+2. Data views: `GET /api/flights/{id}/events?type&fromMs&toMs&afterSeq&limit` (keyset by Seq);
+   `GET /api/flights/{id}/series?kind&param&xParam&fromMs&toMs&maxPoints` (server downsampling per emitter
+   per bucket); message tables per event type (virtualized, follow playhead, click to seek); graph panel
+   (uPlot) with kinds: parameter-vs-time, bearing-vs-time, flight profile (+ countermeasure markers),
+   event rate, parameter-vs-parameter. Flight filters: tail, mission (contains), customer, status,
+   start-date range, has problems, sort.
+3. Management (Admin): `DELETE /api/flights/{id}`, `POST /api/flights/delete` (ids),
+   `DELETE /api/flights?confirm=DELETE` (all; 409 while imports run; TRUNCATE).
+4. Login: PMDA accounts (`AppUser` table, ASP.NET `PasswordHasher`), cookie session (HttpOnly,
+   SameSite=Strict), roles Admin/Analyst enforced by policy on every endpoint and the hub, lockout after
+   5 failures for 15 min, first-run "create administrator" only from loopback, Users panel for admins.

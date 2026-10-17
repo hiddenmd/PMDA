@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # Generated sample flight recordings (tools/PMDA.SampleGen --all samples)
 /samples/
+
+# Brainstorming companion mockups
+.superpowers/

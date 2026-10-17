@@ -13,46 +13,48 @@
 
 ---
 
-## PMDA Decisions (override the generated rules below)
+## PMDA Decisions v2 (override the generated rules below)
 
 The generated output below is kept for reference. Where it conflicts with this section, this section wins.
+Choices made with the user in the brainstorming companion on 2026-10-17: **Graphite + Blue**, **docking
+workspace**, **IBM Plex**.
 
-- **App, not landing page.** Ignore the "Enterprise Gateway" page pattern and the GSAP scroll-reveal motion:
-  PMDA is a workspace (left rail: import + flights; main: flight workspace with playback).
-- **Dark theme is the default** (analysts often work in dim rooms); light theme via `data-theme="light"` or
-  `prefers-color-scheme: light`. The generated palette is light-only; the dark tokens below are adapted from
-  it (blue actions, amber highlights). No database palette matched "dark operations"; these are hand-derived
-  and contrast-checked.
-- **Fonts are bundled** (`@fontsource/fira-sans`, `@fontsource/fira-code`), never loaded from Google: PMDA may
-  run on closed networks. Fira Sans for UI text, Fira Code for numbers, times, IDs (tabular figures).
-- **Icons:** Lucide (`lucide-react`), 16/20 px, `aria-hidden` when next to a text label; icon-only buttons get
-  `aria-label` + tooltip (`title`).
-- **No hover lifts** (`translateY`) on cards or buttons; hover = background/border change, 150 ms.
-- **Inputs and buttons are dense:** 32 px tall (28 px compact), 13–14 px text, but hit area ≥ 32 px and keyboard
-  focus ring always visible (`--color-ring`, 2 px, offset 2 px).
-- **Motion:** only state feedback (150–200 ms) and the playback itself; under `prefers-reduced-motion` the
-  scope draws without fade trails and pulses stop.
-- **Never colour alone:** status chips carry text; scope symbols carry the emitter ID; event types differ by
-  symbol shape as well as colour.
+- **App, not landing page.** Ignore the "Enterprise Gateway" pattern and GSAP scroll reveals. PMDA is a docking
+  workspace (dockview): panels as tabs that can be split, stacked, floated or popped out; the playback bar is
+  pinned at the bottom.
+- **Palette: Graphite + Blue.** Neutral near-black greys, blue only for actions/selection, amber and red only for
+  threats and alarms. Dark is the default; light is available. All pairs contrast-checked (values below).
+- **Type: IBM Plex Sans (UI) + IBM Plex Mono (numbers, times, IDs; tabular figures).** Bundled with
+  `@fontsource`, never loaded from the internet. (No database match; chosen by the user over "Inter System"
+  and "Dashboard Data".)
+- **Type scale** (px at UI size 1): `--fs-xs 11` labels/table headers, `--fs-sm 12` tables/meta,
+  `--fs-md 13` body/controls, `--fs-lg 15` panel titles, `--fs-xl 20` KPIs. Weights 400/500/600.
+  Line heights 1.35 (dense) / 1.5 (body). Uppercase 11 px labels use 0.06em tracking.
+- **UI size** setting scales type, spacing and control heights together: Compact 0.9, Default 1, Large 1.15
+  (`--ui-scale`).
+- **Icons:** Lucide, 14/16/18 px, `aria-hidden` beside text; icon-only buttons get `aria-label` + `title`.
+- **Interaction:** hover = background/border change in 150 ms, no lifts; focus ring 2 px `--color-ring` always
+  visible; destructive actions need a confirmation dialog (typed confirmation for "delete all").
+- **Never colour alone:** status chips carry text, scope and graph symbols differ by shape per band/emitter.
 
 ### Tokens
 
-| Token | Dark (default) | Light | Contrast notes |
+| Token | Dark (default) | Light | Contrast (on card / on muted) |
 |---|---|---|---|
-| `--color-background` | `#0B1120` | `#F8FAFC` | |
-| `--color-card` | `#111A2E` | `#FFFFFF` | |
-| `--color-muted` | `#17223A` | `#E9EEF6` | raised rows, inputs |
-| `--color-border` | `#24314D` | `#DBEAFE` | |
-| `--color-foreground` | `#E5ECF6` | `#1E3A8A` | 14.6:1 / 10.4:1 on card |
-| `--color-muted-foreground` | `#93A3BC` | `#475569` | 6.8:1 / 7.2:1 |
-| `--color-primary` | `#2563EB` | `#1E40AF` | white text 5.2:1 / 8.7:1 |
-| `--color-link` | `#60A5FA` | `#1E40AF` | 6.8:1 on dark card |
-| `--color-accent` (threats, playhead) | `#F59E0B` | `#B45309` | 8.1:1 / 5.0:1 as text |
-| `--color-success` | `#4ADE80` | `#15803D` | 9.9:1 / 5.0:1 |
-| `--color-destructive` | `#F87171` | `#DC2626` | 6.3:1 / 4.8:1 |
-| `--color-ring` | `#60A5FA` | `#1E40AF` | |
+| `--color-background` | `#0B0B10` | `#F4F4F5` | |
+| `--color-card` | `#16161C` | `#FFFFFF` | |
+| `--color-muted` | `#1E1E25` | `#EEEFF2` | raised rows, inputs, tabs |
+| `--color-border` | `#2A2A33` | `#E4E4E7` | |
+| `--color-foreground` | `#E4E4E7` | `#18181B` | 14.2/13.1 · 17.7/15.4 |
+| `--color-muted-foreground` | `#A1A1AA` | `#52525B` | 7.0/6.5 · 7.7/6.7 |
+| `--color-primary` (on: white) | `#2563EB` | `#1D4ED8` | white 5.2 · 6.7 |
+| `--color-link` / `--color-ring` | `#60A5FA` | `#1D4ED8` | 7.1/6.5 · 6.7/5.8 |
+| `--color-accent` (threats, playhead) | `#FBBF24` | `#92400E` | 10.8/9.9 · 7.1/6.2 |
+| `--color-success` | `#4ADE80` | `#166534` | 10.3/9.5 · 7.1/6.2 |
+| `--color-destructive` | `#F87171` | `#B91C1C` | 6.5/6.0 · 6.5/5.6 |
 
-Spacing: the dense scale below (`--space-xs` 2 px … `--space-3xl` 32 px). Radius: 6 px controls, 10 px panels.
+Spacing (× `--ui-scale`): 2, 4, 8, 12, 16, 24, 32 px. Radius: 4 px controls, 6 px panels. Control height 30 px
+(compact 26 px).
 
 ---
 

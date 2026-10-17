@@ -1,4 +1,5 @@
 import { Loader2, Pause, Play, RotateCcw, SkipBack, SkipForward } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { formatElapsed, formatUtcClock } from '../../lib/format'
 import type { TransportStatus } from '../../machines/playbackMachine'
 import { SPEEDS, type Speed } from './playbackView'
@@ -11,22 +12,23 @@ interface TransportBarProps {
   onToggle: () => void
   onStep: (direction: -1 | 1) => void
   onSpeed: (speed: Speed) => void
+  children?: ReactNode
 }
 
-export function TransportBar({ status, speed, positionMs, startUtc, onToggle, onStep, onSpeed }: TransportBarProps) {
+export function TransportBar({ status, speed, positionMs, startUtc, onToggle, onStep, onSpeed, children }: TransportBarProps) {
   const playing = status === 'playing' || status === 'buffering'
   const toggleLabel = status === 'ended' ? 'Replay from start' : playing ? 'Pause' : 'Play'
   const ToggleIcon = status === 'ended' ? RotateCcw : playing ? Pause : Play
 
   return (
     <div className="transport__controls">
-      <button type="button" className="btn btn--ghost btn--icon" aria-label="Step back" title="Step back (←)" onClick={() => onStep(-1)}>
+      <button type="button" className="btn btn--ghost btn--icon btn--compact" aria-label="Step back" title="Step back (←)" onClick={() => onStep(-1)}>
         <SkipBack size={18} aria-hidden />
       </button>
-      <button type="button" className="btn btn--primary btn--icon" aria-label={toggleLabel} title={`${toggleLabel} (Space)`} onClick={onToggle}>
+      <button type="button" className="btn btn--primary btn--icon btn--compact" aria-label={toggleLabel} title={`${toggleLabel} (Space)`} onClick={onToggle}>
         <ToggleIcon size={18} aria-hidden />
       </button>
-      <button type="button" className="btn btn--ghost btn--icon" aria-label="Step forward" title="Step forward (→)" onClick={() => onStep(1)}>
+      <button type="button" className="btn btn--ghost btn--icon btn--compact" aria-label="Step forward" title="Step forward (→)" onClick={() => onStep(1)}>
         <SkipForward size={18} aria-hidden />
       </button>
 
@@ -35,7 +37,7 @@ export function TransportBar({ status, speed, positionMs, startUtc, onToggle, on
       </label>
       <select
         id="playback-speed"
-        className="select btn--compact"
+        className="select select--compact"
         title="Playback speed ([ and ])"
         value={speed}
         onChange={(e) => onSpeed(Number(e.target.value) as Speed)}
@@ -47,6 +49,7 @@ export function TransportBar({ status, speed, positionMs, startUtc, onToggle, on
         ))}
       </select>
 
+      {children}
       {status === 'buffering' && (
         <span className="transport__status" role="status">
           <Loader2 size={14} aria-hidden /> Loading…

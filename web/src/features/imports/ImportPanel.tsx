@@ -20,10 +20,7 @@ export function ImportPanelView(vm: ImportViewModel & ImportPanelProps) {
   const canStart = status === 'idle' || status === 'completed' || status === 'duplicate' || status === 'failed' || status === 'cancelled'
 
   return (
-    <section className="panel" aria-labelledby="import-title">
-      <div className="panel__header">
-        <h2 id="import-title">Import flight</h2>
-      </div>
+    <section className="import" aria-label="Import flight">
 
       {canStart && <FilePicker onFile={vm.start} />}
 

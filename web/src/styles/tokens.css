@@ -1,68 +1,108 @@
-/* Design tokens — design-system/pmda/MASTER.md ("PMDA Decisions"). Dark is the default theme. */
+/*
+ * Design tokens — design-system/pmda/MASTER.md, "PMDA Decisions v2".
+ * Graphite + Blue, dark by default. Everything size-related scales with --ui-scale (UI size setting).
+ */
 
 :root {
-  --color-background: #0b1120;
-  --color-card: #111a2e;
-  --color-muted: #17223a;
-  --color-border: #24314d;
-  --color-foreground: #e5ecf6;
-  --color-muted-foreground: #93a3bc;
+  --ui-scale: 1;
+
+  /* Colour: dark (default) */
+  --color-background: #0b0b10;
+  --color-card: #16161c;
+  --color-muted: #1e1e25;
+  --color-hover: #25252e;
+  --color-border: #2a2a33;
+  --color-border-strong: #3a3a45;
+  --color-foreground: #e4e4e7;
+  --color-muted-foreground: #a1a1aa;
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-on-primary: #ffffff;
+  --color-selection: rgb(37 99 235 / 0.18);
   --color-link: #60a5fa;
-  --color-accent: #f59e0b;
-  --color-on-accent: #0b1120;
+  --color-ring: #60a5fa;
+  --color-accent: #fbbf24;
+  --color-on-accent: #0b0b10;
   --color-success: #4ade80;
   --color-destructive: #f87171;
-  --color-ring: #60a5fa;
+  --color-destructive-solid: #dc2626;
 
-  /* Event-type series (also distinguished by shape/label, never colour alone) */
-  --color-series-emitter: #f59e0b;
+  /* Data series (also distinguished by symbol/label, never colour alone) */
+  --color-series-emitter: #fbbf24;
   --color-series-countermeasure: #f87171;
   --color-series-navigation: #60a5fa;
+  --color-series-4: #a78bfa;
+  --color-series-5: #34d399;
+  --color-series-6: #f472b6;
 
-  --space-xs: 2px;
-  --space-sm: 4px;
-  --space-md: 8px;
-  --space-lg: 12px;
-  --space-xl: 16px;
-  --space-2xl: 24px;
-  --space-3xl: 32px;
+  --shadow-popover: 0 8px 28px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.35);
 
-  --radius-control: 6px;
-  --radius-panel: 10px;
-  --control-height: 32px;
-  --control-height-compact: 28px;
+  /* Type: IBM Plex, bundled */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --fs-xs: calc(11px * var(--ui-scale));
+  --fs-sm: calc(12px * var(--ui-scale));
+  --fs-md: calc(13px * var(--ui-scale));
+  --fs-lg: calc(15px * var(--ui-scale));
+  --fs-xl: calc(20px * var(--ui-scale));
+  --lh-dense: 1.35;
+  --lh-body: 1.5;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --tracking-label: 0.06em;
 
-  --font-sans: 'Fira Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Fira Code', ui-monospace, 'Cascadia Code', Consolas, monospace;
-
+  /* Space, shape, controls */
+  --space-xs: calc(2px * var(--ui-scale));
+  --space-sm: calc(4px * var(--ui-scale));
+  --space-md: calc(8px * var(--ui-scale));
+  --space-lg: calc(12px * var(--ui-scale));
+  --space-xl: calc(16px * var(--ui-scale));
+  --space-2xl: calc(24px * var(--ui-scale));
+  --space-3xl: calc(32px * var(--ui-scale));
+  --radius-control: 4px;
+  --radius-panel: 6px;
+  --control-height: calc(30px * var(--ui-scale));
+  --control-height-compact: calc(26px * var(--ui-scale));
+  --header-height: calc(40px * var(--ui-scale));
   --duration-fast: 150ms;
-  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3);
 
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
-  --color-background: #f8fafc;
+  --color-background: #f4f4f5;
   --color-card: #ffffff;
-  --color-muted: #e9eef6;
-  --color-border: #dbeafe;
-  --color-foreground: #1e3a8a;
-  --color-muted-foreground: #475569;
-  --color-primary: #1e40af;
-  --color-primary-hover: #1e3a8a;
-  --color-link: #1e40af;
-  --color-accent: #b45309;
+  --color-muted: #eeeff2;
+  --color-hover: #e4e4e7;
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+  --color-foreground: #18181b;
+  --color-muted-foreground: #52525b;
+  --color-primary: #1d4ed8;
+  --color-primary-hover: #1e40af;
+  --color-selection: rgb(29 78 216 / 0.1);
+  --color-link: #1d4ed8;
+  --color-ring: #1d4ed8;
+  --color-accent: #92400e;
   --color-on-accent: #ffffff;
-  --color-success: #15803d;
-  --color-destructive: #dc2626;
-  --color-ring: #1e40af;
+  --color-success: #166534;
+  --color-destructive: #b91c1c;
+  --color-destructive-solid: #b91c1c;
   --color-series-emitter: #b45309;
-  --color-series-countermeasure: #dc2626;
-  --color-series-navigation: #1e40af;
-  --shadow-panel: 0 1px 2px rgb(15 23 42 / 0.06);
+  --color-series-countermeasure: #b91c1c;
+  --color-series-navigation: #1d4ed8;
+  --color-series-4: #6d28d9;
+  --color-series-5: #047857;
+  --color-series-6: #be185d;
+  --shadow-popover: 0 8px 28px rgb(24 24 27 / 0.14), 0 2px 6px rgb(24 24 27 / 0.08);
 
   color-scheme: light;
+}
+
+:root[data-ui-size='compact'] {
+  --ui-scale: 0.9;
+}
+:root[data-ui-size='large'] {
+  --ui-scale: 1.15;
 }

@@ -21,10 +21,10 @@ export function FlightList({ selectedId, onSelect }: FlightListProps) {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
-    <section className="panel flights" aria-labelledby="flights-title">
-      <div className="panel__header">
-        <h2 id="flights-title">Flights</h2>
-        {flights.data && <span className="muted mono">{formatNumber(total)}</span>}
+    <section className="flights" aria-labelledby="flights-title">
+      <div className="section-title">
+        <h3 id="flights-title">Flights</h3>
+        {flights.data && <span className="muted mono small">{formatNumber(total)}</span>}
       </div>
       <div className="input-with-icon">
         <Search size={14} aria-hidden />
@@ -76,7 +76,7 @@ export function FlightItems({ flights, selectedId, onSelect }: FlightItemsProps)
   if (flights.length === 0) return <p className="muted">No flights yet. Import a recording to get started.</p>
 
   return (
-    <ul className="flights__list">
+    <ul className="flights-list">
       {flights.map((f) => (
         <li key={f.id}>
           <button type="button" className="flight-item" aria-current={f.id === selectedId} onClick={() => onSelect(f.id)}>

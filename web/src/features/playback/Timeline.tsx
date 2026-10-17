@@ -67,7 +67,7 @@ export function Timeline({ overview, positionMs, durationMs, startUtc, onSeek }:
 
   const clock = formatUtcClock(new Date(Date.parse(startUtc) + positionMs))
   return (
-    <div className="transport">
+    <div className="transport-timeline">
       <div className="timeline">
         <canvas ref={canvasRef} aria-hidden />
         <input

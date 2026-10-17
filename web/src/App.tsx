@@ -1,38 +1,30 @@
-import { Radar } from 'lucide-react'
-import { useState } from 'react'
-import { ConnectionBadge } from './components/ConnectionBadge'
-import { ThemeToggle } from './components/ThemeToggle'
-import { FlightList } from './features/flights/FlightList'
-import { FlightWorkspace } from './features/flights/FlightWorkspace'
-import { ImportPanel } from './features/imports/ImportPanel'
+import type { DockviewApi } from 'dockview-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useLiveFlightRefresh } from './hooks/useFlights'
-import { useImportHub } from './hooks/useImportHub'
+import { AppBar } from './workspace/AppBar'
+import { Dock } from './workspace/Dock'
+import { layoutStore } from './workspace/layouts'
+import { PlaybackBar } from './workspace/PlaybackBar'
+import { WorkspaceProvider } from './workspace/WorkspaceProvider'
 
-export function App() {
-  const { status } = useImportHub()
-  const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null)
+interface AppProps {
+  /** Identifies the user for per-user layouts. */
+  userKey?: string
+  userMenu?: ReactNode
+}
+
+export function App({ userKey = 'local', userMenu }: AppProps) {
+  const [api, setApi] = useState<DockviewApi | null>(null)
+  const store = useMemo(() => layoutStore(userKey), [userKey])
   useLiveFlightRefresh()
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <Radar size={22} aria-hidden />
-          <h1>
-            PMDA <span className="brand__sub">Post-Mission Data Analysis</span>
-          </h1>
-        </div>
-        <div className="topbar__spacer" />
-        <ConnectionBadge status={status} />
-        <ThemeToggle />
-      </header>
-      <aside className="rail" aria-label="Import and flights">
-        <ImportPanel onOpenFlight={setSelectedFlightId} />
-        <FlightList selectedId={selectedFlightId} onSelect={setSelectedFlightId} />
-      </aside>
-      <main className="workspace">
-        <FlightWorkspace flightId={selectedFlightId} />
-      </main>
-    </div>
+    <WorkspaceProvider>
+      <div className="shell">
+        <AppBar api={api} store={store} userMenu={userMenu} />
+        <Dock store={store} onReady={setApi} />
+        <PlaybackBar />
+      </div>
+    </WorkspaceProvider>
   )
 }

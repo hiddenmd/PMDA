@@ -1,29 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
-import { useActorRef, useSelector } from '@xstate/react'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useSelector } from '@xstate/react'
+import { useEffect, useMemo } from 'react'
 import { getOverview } from '../../api/playback'
-import { playbackMachine, transportStatus, type PlaybackContext, type PlaybackEvent } from '../../machines/playbackMachine'
+import { transportStatus, type PlaybackContext, type PlaybackEvent } from '../../machines/playbackMachine'
+import type { PlaybackActor } from '../../workspace/workspaceContext'
 import { SPEEDS, stepForSpeed, viewAt, type Speed } from './playbackView'
 
-/** Text panels refresh about 10 times per real second; the scope draws itself every frame. */
+/** Text panels refresh about 10 times per real second; canvases draw themselves every frame. */
 const UI_REFRESH_MS = 100
-const OVERVIEW_BUCKETS = 600
+export const OVERVIEW_BUCKETS = 600
 
 const quantum = (c: PlaybackContext) => Math.floor(c.positionMs / (UI_REFRESH_MS * c.speed))
 const sameForUi = (a: PlaybackContext, b: PlaybackContext) =>
   a.frames === b.frames && a.speed === b.speed && a.error === b.error && quantum(a) === quantum(b)
 
-export function usePlayback(flightId: string, durationMs: number) {
-  const actor = useActorRef(playbackMachine, { input: { flightId, durationMs } })
+/** Playback state for text panels, re-rendering about 10 times per second. */
+export function usePlaybackState(actor: PlaybackActor) {
   const status = useSelector(actor, transportStatus)
   const context = useSelector(actor, (s) => s.context, sameForUi)
   const view = useMemo(() => viewAt(context.frames, context.positionMs, stepForSpeed(context.speed)), [context])
-
-  const overview = useQuery({
-    queryKey: ['flights', 'overview', flightId, OVERVIEW_BUCKETS],
-    queryFn: ({ signal }) => getOverview(flightId, OVERVIEW_BUCKETS, signal),
-    staleTime: Infinity, // a completed flight never changes
-  })
 
   const commands = useMemo(
     () => ({
@@ -35,10 +30,15 @@ export function usePlayback(flightId: string, durationMs: number) {
     [actor],
   )
 
-  const currentSpeed = useCallback(() => actor.getSnapshot().context.speed, [actor])
-  usePlaybackShortcuts(actor.send, currentSpeed)
+  return { status, positionMs: context.positionMs, speed: context.speed, error: context.error, view, ...commands }
+}
 
-  return { actor, status, positionMs: context.positionMs, speed: context.speed, error: context.error, view, overview: overview.data, ...commands }
+export function useFlightOverview(flightId: string) {
+  return useQuery({
+    queryKey: ['flights', 'overview', flightId, OVERVIEW_BUCKETS],
+    queryFn: ({ signal }) => getOverview(flightId, OVERVIEW_BUCKETS, signal),
+    staleTime: Infinity, // a completed flight never changes
+  })
 }
 
 /**
@@ -68,7 +68,7 @@ export function usePlaybackShortcuts(send: (e: PlaybackEvent) => void, currentSp
         case 'ArrowLeft':
         case 'ArrowRight':
           if (tag === 'INPUT') return
-          send({ type: 'STEP', direction: e.key === 'ArrowLeft' ? -1 : 1 })
+          send({ type: 'STEP', direction: key === 'ArrowLeft' ? -1 : 1 })
           break
         case '[':
           send({ type: 'SET_SPEED', speed: SPEEDS[Math.max(0, speedIndex - 1)] })
