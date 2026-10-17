@@ -16,6 +16,8 @@ public sealed record FlightImportSummary(
     DateTime? FirstEventUtc,
     DateTime? LastEventUtc);
 
+public sealed record ParseDiagnostic(long FileOffset, string Message);
+
 public enum BeginFlightResult
 {
     Started,

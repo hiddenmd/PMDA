@@ -25,8 +25,6 @@ public sealed record ImportProgress(long BytesRead, long TotalBytes, long EventC
 
 public enum ImportStatus { Completed, Duplicate, Failed }
 
-public sealed record ParseDiagnostic(long FileOffset, string Message);
-
 public sealed record ImportResult(
     ImportStatus Status,
     Guid FlightId,
