@@ -1,4 +1,4 @@
-import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/signalr'
+import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from '@microsoft/signalr'
 import type { ImportJob } from './types'
 
 type Listener<T extends unknown[] = []> = (...args: T) => void
@@ -42,13 +42,18 @@ export function createImportHub(url: string = importHubPath): ImportHub {
     return () => set.delete(listener)
   }
 
-  // A start right after a stop (React StrictMode remounts) must wait for the stop to finish.
+  // A start right after a stop (React StrictMode remounts) must wait for the stop to finish,
+  // and overlapping starts share one attempt instead of failing on SignalR's state check.
   let stopping: Promise<void> = Promise.resolve()
+  let starting: Promise<void> | null = null
 
   return {
-    async start() {
-      await stopping
-      await connection.start()
+    start() {
+      if (connection.state === HubConnectionState.Connected) return Promise.resolve()
+      starting ??= stopping.then(() => connection.start()).finally(() => {
+        starting = null
+      })
+      return starting
     },
     stop() {
       stopping = connection.stop().catch(() => undefined)

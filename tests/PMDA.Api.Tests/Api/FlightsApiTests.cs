@@ -49,6 +49,20 @@ public sealed class FlightsApiTests(SqlDatabase db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Times_are_serialized_as_utc()
+    {
+        var id = await ImportAsync(SampleFiles.Flight());
+
+        var list = await _client.GetStringAsync("/api/flights");
+        var detail = await _client.GetStringAsync($"/api/flights/{id}");
+
+        Assert.Contains("\"startUtc\":\"2026-03-14T09:30:00Z\"", list);
+        Assert.Contains("\"startUtc\":\"2026-03-14T09:30:00Z\"", detail);
+        Assert.Contains("\"firstEventUtc\":\"2026-03-14T09:30:00Z\"", detail);
+        Assert.Matches("\"importedUtc\":\"[^\"]+Z\"", detail);
+    }
+
+    [Fact]
     public async Task List_filters_by_tail_and_pages()
     {
         await ImportAsync(SampleFiles.Flight(seed: 1, tail: "AAA"));

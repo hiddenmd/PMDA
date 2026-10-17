@@ -82,6 +82,26 @@ public sealed class SqlStorageTests(SqlDatabase db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Interrupted_imports_are_failed_and_their_events_removed()
+    {
+        // A flight row left in Importing with some events, as a crashed server would leave it.
+        var sink = new SqlEventSink(db.ConnectionString);
+        var flightId = Guid.NewGuid();
+        var header = new PMDA.Core.Parsing.FlightHeader("SAMPLE", 1, SampleFiles.Start, "T", "M");
+        await sink.BeginFlightAsync(new FlightImportInfo(flightId, header, "crashed.bin", null), default);
+        await sink.WriteBatchAsync(flightId, new[] { new FlightEvent { FlightId = flightId, TimeUtc = SampleFiles.Start } }, default);
+        var completed = await Import(SampleFiles.Flight());
+
+        var failed = await _flights.FailInterruptedImportsAsync(default);
+
+        Assert.Equal(1, failed);
+        var flight = await _flights.GetAsync(flightId, default);
+        Assert.Equal(FlightStatus.Failed, flight!.Status);
+        Assert.Equal(0, await db.ScalarAsync("SELECT COUNT(*) FROM dbo.FlightEvent WHERE FlightId = @FlightId", flightId));
+        Assert.Equal(FlightStatus.Completed, (await _flights.GetAsync(completed.FlightId, default))!.Status);
+    }
+
+    [Fact]
     public async Task Unknown_flight_is_null()
     {
         Assert.Null(await _flights.GetAsync(Guid.NewGuid(), default));

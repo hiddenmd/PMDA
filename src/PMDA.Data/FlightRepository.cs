@@ -40,17 +40,18 @@ public sealed class FlightRepository(string connectionString)
         await using var conn = new SqlConnection(connectionString);
         await using var grid = await conn.QueryMultipleAsync(new CommandDefinition(sql, args, cancellationToken: ct));
         var total = await grid.ReadSingleAsync<long>();
-        var items = (await grid.ReadAsync<FlightRecord>()).AsList();
+        var items = (await grid.ReadAsync<FlightRecord>()).Select(AsUtc).ToList();
         return new PagedResult<FlightRecord>(items, query.Page, query.PageSize, total);
     }
 
     public async Task<FlightRecord?> GetAsync(Guid flightId, CancellationToken ct)
     {
         await using var conn = new SqlConnection(connectionString);
-        return await conn.QuerySingleOrDefaultAsync<FlightRecord>(new CommandDefinition(
+        var flight = await conn.QuerySingleOrDefaultAsync<FlightRecord>(new CommandDefinition(
             $"SELECT {FlightColumns} FROM dbo.Flight WHERE FlightId = @flightId;",
             new { flightId },
             cancellationToken: ct));
+        return flight is null ? null : AsUtc(flight);
     }
 
     public async Task SaveDiagnosticsAsync(Guid flightId, IReadOnlyList<ParseDiagnostic> items, CancellationToken ct)
@@ -82,4 +83,42 @@ public sealed class FlightRepository(string connectionString)
             cancellationToken: ct));
         return rows.AsList();
     }
+
+    /// <summary>
+    /// Fails flights left in Importing by a server that stopped mid-import, removing their partial
+    /// events. Import jobs live in one server's memory, so call this once on startup.
+    /// </summary>
+    /// <returns>The number of flights marked failed.</returns>
+    public async Task<int> FailInterruptedImportsAsync(CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connectionString);
+        return await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
+            DELETE e FROM dbo.FlightEvent e
+            JOIN dbo.Flight f ON f.FlightId = e.FlightId
+            WHERE f.Status = @Importing;
+
+            UPDATE dbo.Flight
+            SET Status = @Failed, FailureReason = N'The server stopped during the import.'
+            WHERE Status = @Importing;
+
+            SELECT @@ROWCOUNT;
+            """,
+            new { Importing = (byte)FlightStatus.Importing, Failed = (byte)FlightStatus.Failed },
+            commandTimeout: 0,
+            cancellationToken: ct));
+    }
+
+    /// <summary>
+    /// All times are stored in UTC, but datetime2 carries no kind, so SqlClient returns
+    /// Unspecified. Mark them UTC so they serialize with a 'Z' and clients do not read local time.
+    /// </summary>
+    private static FlightRecord AsUtc(FlightRecord f) => f with
+    {
+        StartUtc = Utc(f.StartUtc),
+        FirstEventUtc = f.FirstEventUtc is { } first ? Utc(first) : null,
+        LastEventUtc = f.LastEventUtc is { } last ? Utc(last) : null,
+        ImportedUtc = Utc(f.ImportedUtc),
+    };
+
+    private static DateTime Utc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc);
 }

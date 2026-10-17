@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { getFlight, getFlightDiagnostics, listFlights, type FlightListParams } from '../api/flights'
 import { isFinalImportState } from '../api/types'
 import { useImportHub } from './useImportHub'
@@ -35,10 +35,19 @@ export function useFlightDiagnostics(id: string | null) {
   })
 }
 
-/** Refreshes flight data whenever any import (from any user) finishes with a flight. */
+/**
+ * Refreshes flight data whenever any import (from any user) finishes with a flight, and after the
+ * hub reconnects, since updates sent while disconnected are lost.
+ */
 export function useLiveFlightRefresh() {
-  const { hub } = useImportHub()
+  const { hub, status } = useImportHub()
   const queryClient = useQueryClient()
+  const wasConnected = useRef(false)
+
+  useEffect(() => {
+    if (status === 'connected' && !wasConnected.current) void queryClient.invalidateQueries({ queryKey: flightKeys.all })
+    wasConnected.current = status === 'connected'
+  }, [status, queryClient])
 
   useEffect(
     () =>

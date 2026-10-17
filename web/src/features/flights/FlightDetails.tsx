@@ -40,7 +40,8 @@ export function FlightDetails({ flightId }: { flightId: string | null }) {
             <dd>{formatUtc(flight.data.startUtc)}</dd>
             <dt>Events</dt>
             <dd>
-              {formatNumber(flight.data.eventCount)} from {formatUtc(flight.data.firstEventUtc)} to {formatUtc(flight.data.lastEventUtc)}
+              {formatNumber(flight.data.eventCount)} from {formatUtc(flight.data.firstEventUtc)} to{' '}
+              {formatUtc(flight.data.lastEventUtc)}
             </dd>
             <dt>Source file</dt>
             <dd>{flight.data.sourceName}</dd>
@@ -54,24 +55,26 @@ export function FlightDetails({ flightId }: { flightId: string | null }) {
       {diagnostics.isPending && <p className="muted">Loading…</p>}
       {diagnostics.data?.length === 0 && <p className="muted">None — every record was read cleanly.</p>}
       {diagnostics.data && diagnostics.data.length > 0 && (
-        <table className="table table--compact">
-          <thead>
-            <tr>
-              <th scope="col" className="num">
-                File offset
-              </th>
-              <th scope="col">Problem</th>
-            </tr>
-          </thead>
-          <tbody>
-            {diagnostics.data.map((d, i) => (
-              <tr key={`${d.fileOffset}-${i}`}>
-                <td className="num mono">{formatNumber(d.fileOffset)}</td>
-                <td>{d.message}</td>
+        <div className="table-wrap">
+          <table className="table table--compact">
+            <thead>
+              <tr>
+                <th scope="col" className="num">
+                  File offset
+                </th>
+                <th scope="col">Problem</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {diagnostics.data.map((d, i) => (
+                <tr key={`${d.fileOffset}-${i}`}>
+                  <td className="num mono">{formatNumber(d.fileOffset)}</td>
+                  <td>{d.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )

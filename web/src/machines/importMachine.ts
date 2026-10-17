@@ -1,4 +1,5 @@
 import { assign, fromCallback, fromPromise, setup, type SnapshotFrom } from 'xstate'
+import { ApiError } from '../api/client'
 import { cancelImport, getImport, uploadImport } from '../api/imports'
 import type { ImportJob } from '../api/types'
 
@@ -30,6 +31,7 @@ export type ImportEvent =
   | { type: 'RESET' }
   | { type: 'HUB_STATUS'; connected: boolean }
   | { type: 'JOB_UPDATED'; job: ImportJob }
+  | { type: 'JOB_LOST' }
   | { type: 'UPLOAD_PROGRESS'; loaded: number; total: number }
   | { type: 'UPLOAD_DONE'; job: ImportJob }
   | { type: 'UPLOAD_FAILED'; error: string }
@@ -57,14 +59,17 @@ export const uploadActor = fromCallback<ImportEvent, { file: File }>(({ input, s
 
 /**
  * Fetches the job right away (to catch up on anything missed), then every `intervalMs` if given.
- * Fetch errors are ignored: the next tick or the hub will deliver.
+ * A 404 means the server no longer has the job (jobs live in server memory, so it restarted);
+ * other fetch errors are ignored: the next tick or the hub will deliver.
  */
 export const watchJobActor = fromCallback<ImportEvent, { id: string; intervalMs: number | null }>(({ input, sendBack }) => {
   const controller = new AbortController()
   const fetchOnce = () =>
     getImport(input.id, controller.signal).then(
       (job) => sendBack({ type: 'JOB_UPDATED', job }),
-      () => undefined,
+      (error: unknown) => {
+        if (error instanceof ApiError && error.status === 404) sendBack({ type: 'JOB_LOST' })
+      },
     )
   void fetchOnce()
   const timer = input.intervalMs === null ? undefined : setInterval(fetchOnce, input.intervalMs)
@@ -157,6 +162,10 @@ export const importMachine = setup({
       ],
       on: {
         JOB_UPDATED: { guard: 'isNewerUpdateOfOurJob', actions: 'storeJob' },
+        JOB_LOST: {
+          target: 'failed',
+          actions: assign({ error: 'The server no longer knows this import; it probably restarted. Please retry.' }),
+        },
       },
       states: {
         phase: {

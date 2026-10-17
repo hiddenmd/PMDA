@@ -36,8 +36,11 @@ export function useImport(): ImportViewModel {
 
   const status = importStatus(snapshot)
   useEffect(() => {
-    // Covers the polling path too, where no hub event announces the new flight.
-    if (status === 'completed') void queryClient.invalidateQueries({ queryKey: flightKeys.all })
+    // Any finished import may have added or changed a flight; covers the polling path too,
+    // where no hub event announces it.
+    if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+      void queryClient.invalidateQueries({ queryKey: flightKeys.all })
+    }
   }, [status, queryClient])
 
   const actions = useMemo(

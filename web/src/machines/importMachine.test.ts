@@ -127,6 +127,17 @@ describe('importMachine', () => {
     expect(h.status()).toBe('processing')
   })
 
+  it('fails when the server no longer knows the job (it restarted)', () => {
+    const h = harness({ hubConnected: false })
+    h.uploaded()
+
+    h.activeWatches()[0].sendBack({ type: 'JOB_LOST' })
+
+    expect(h.status()).toBe('failed')
+    expect(h.actor.getSnapshot().context.error).toMatch(/restarted/)
+    expect(h.activeWatches()).toEqual([])
+  })
+
   it('cancelling during upload aborts it', () => {
     const h = harness()
     h.actor.send({ type: 'START', file: makeFile() })
