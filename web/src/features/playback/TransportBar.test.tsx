@@ -9,6 +9,7 @@ function renderBar(status: TransportStatus = 'paused') {
     status,
     speed: 1 as const,
     positionMs: 3_723_000,
+    durationMs: 5_400_000,
     startUtc: '2026-03-14T09:30:00Z',
     onToggle: vi.fn(),
     onStep: vi.fn(),
@@ -19,10 +20,11 @@ function renderBar(status: TransportStatus = 'paused') {
 }
 
 describe('TransportBar', () => {
-  it('shows UTC time and elapsed time at the playhead', () => {
+  it('shows UTC time and elapsed time at the playhead, and the flight length', () => {
     renderBar()
     expect(screen.getByText('10:32:03Z')).toBeInTheDocument()
     expect(screen.getByText('T+01:02:03')).toBeInTheDocument()
+    expect(screen.getByText('01:30:00')).toBeInTheDocument()
   })
 
   it('labels the main button by what it will do', () => {

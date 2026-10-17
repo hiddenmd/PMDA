@@ -1,3 +1,4 @@
+using PMDA.Core.Events;
 using PMDA.Parsers.Sample;
 
 namespace PMDA.SampleGen;
@@ -6,8 +7,11 @@ namespace PMDA.SampleGen;
 /// Simulates a sortie and writes it in the sample format: an aircraft flies a route over ground
 /// radars; each radar has a fixed site, parameters, an on/off schedule and a scan pattern. The RWR
 /// sees a radar while it is on, in range and illuminating the aircraft; bearing (relative to the
-/// aircraft heading) and amplitude follow from the geometry. A radar that gets close enough locks
-/// on (continuous illumination) and the aircraft dispenses countermeasures.
+/// aircraft heading) and amplitude follow from the geometry. A tracking radar (not early warning)
+/// that gets close enough locks on (continuous illumination) and the aircraft dispenses chaff. Fire-control radars sometimes
+/// launch a missile while locked; the missile warner then calls it and the aircraft dispenses
+/// flares. Aural alerts are recorded as they would sound in the cockpit, and countermeasures run
+/// out: there is a fixed load of chaff and flares.
 /// </summary>
 internal sealed class MissionSimulator(Scenario scenario)
 {
@@ -16,6 +20,8 @@ internal sealed class MissionSimulator(Scenario scenario)
     private const double MaxTurnDegPerSec = 3;       // standard-rate turn
     private const double CenterLat = 44.43, CenterLon = 26.10;
     private const double AreaRadiusM = 120_000;
+    private const double NewThreatGapS = 10;          // unseen this long, a radar is "new" again
+    private const int ChaffLoad = 30, FlareLoad = 14; // the SAMPLE symbology profile's load
 
     private readonly Random _random = new(scenario.Seed);
 
@@ -44,6 +50,9 @@ internal sealed class MissionSimulator(Scenario scenario)
             var waypoint = 1;
             var alt = 3_000.0;
             var nextChaff = 0.0;
+            var chaff = new Store(1, ChaffLoad, AlertKind.ChaffLow, AlertKind.ChaffOut);
+            var flares = new Store(2, FlareLoad, AlertKind.FlaresLow, AlertKind.FlaresOut);
+            var missiles = new List<(double At, Emitter Shooter)>();
 
             for (long tick = 0; tick < ticks; tick++)
             {
@@ -71,6 +80,18 @@ internal sealed class MissionSimulator(Scenario scenario)
                     corrupt++;
                 }
 
+                // Missiles already in the air reach the warner's range.
+                for (var i = missiles.Count - 1; i >= 0; i--)
+                {
+                    var (at, shooter) = missiles[i];
+                    if (t < at)
+                        continue;
+                    missiles.RemoveAt(i);
+                    var from = Geo.Normalize(Geo.BearingDeg(lat, lon, shooter.Lat, shooter.Lon) - heading + Noise(4));
+                    w.WriteAlert(offset, AlertKind.MissileApproach, shooter.Id, (float)from);
+                    records += 1 + Dispense(w, offset, chaff, 2) + Dispense(w, offset, flares, 2);
+                }
+
                 if (tick % emitterEvery != 0)
                     continue;
 
@@ -78,14 +99,38 @@ internal sealed class MissionSimulator(Scenario scenario)
                 foreach (var e in emitters)
                 {
                     var distance = Geo.DistanceM(lat, lon, e.Lat, e.Lon);
-                    if (!e.IsOn(t) || distance > e.RangeM)
-                        continue;
-                    var lockOn = distance < e.RangeM * 0.35;
-                    if (!lockOn && !e.Illuminating(t))
+                    var lockOn = e.CanTrack && e.IsOn(t) && distance < e.RangeM * 0.35;
+                    var detected = lockOn || (e.IsOn(t) && distance <= e.RangeM && e.Illuminating(t));
+                    var bearing = Geo.Normalize(Geo.BearingDeg(lat, lon, e.Lat, e.Lon) - heading + Noise(1.5));
+
+                    if (!lockOn)
+                        e.LaunchAt = null; // track broken before the shot
+                    else if (!e.Locked)
+                    {
+                        w.WriteAlert(offset, AlertKind.RadarLock, e.Id, (float)bearing);
+                        records++;
+                        if (e.CanLaunch && _random.NextDouble() < 0.6)
+                            e.LaunchAt = t + 4 + _random.NextDouble() * 6;
+                    }
+                    e.Locked = lockOn;
+                    if (!detected)
                         continue;
                     locked |= lockOn;
 
-                    var bearing = Geo.Normalize(Geo.BearingDeg(lat, lon, e.Lat, e.Lon) - heading + Noise(1.5));
+                    if (t - e.LastSeen > NewThreatGapS)
+                    {
+                        w.WriteAlert(offset, AlertKind.NewThreat, e.Id, (float)bearing);
+                        records++;
+                    }
+                    e.LastSeen = t;
+                    if (e.LaunchAt is { } launch && t >= launch)
+                    {
+                        w.WriteAlert(offset, AlertKind.MissileLaunch, e.Id, (float)bearing);
+                        records++;
+                        e.LaunchAt = null;
+                        missiles.Add((t + distance / 900 * 0.6, e)); // ~Mach 3, called in the last part of its flight
+                    }
+
                     var amplitude = (float)Math.Clamp(-25 - 20 * Math.Log10(distance / 5_000) + Noise(1), -90, -10);
                     for (var s = 0; s < subTicks; s++)
                     {
@@ -96,17 +141,11 @@ internal sealed class MissionSimulator(Scenario scenario)
                     }
                 }
 
-                // Under lock, dispense chaff every few seconds and the odd flare pair.
+                // Under lock, dispense a little chaff every several seconds while it lasts.
                 if (locked && t >= nextChaff)
                 {
-                    w.WriteCountermeasure(offset, kind: 1, count: (byte)_random.Next(2, 5));
-                    records++;
-                    if (_random.NextDouble() < 0.3)
-                    {
-                        w.WriteCountermeasure(offset, kind: 2, count: 2);
-                        records++;
-                    }
-                    nextChaff = t + 4 + _random.NextDouble() * 4;
+                    records += Dispense(w, offset, chaff, (byte)_random.Next(1, 3));
+                    nextChaff = t + 8 + _random.NextDouble() * 8;
                 }
             }
 
@@ -118,6 +157,35 @@ internal sealed class MissionSimulator(Scenario scenario)
         }
 
         return new Result(records, corrupt, new FileInfo(path).Length);
+    }
+
+    /// <summary>Releases up to <paramref name="count"/> from the store; calls LOW at a quarter left and OUT when empty.</summary>
+    /// <returns>Records written.</returns>
+    private static int Dispense(SampleFormatWriter w, TimeSpan offset, Store store, byte count)
+    {
+        var released = (byte)Math.Min(count, store.Left);
+        if (released == 0)
+            return 0;
+        var before = store.Left;
+        store.Left -= released;
+        w.WriteCountermeasure(offset, store.Kind, released);
+        var low = store.Load / 4;
+        if (store.Left == 0)
+            w.WriteAlert(offset, store.OutAlert);
+        else if (before > low && store.Left <= low)
+            w.WriteAlert(offset, store.LowAlert);
+        else
+            return 1;
+        return 2;
+    }
+
+    private sealed class Store(byte kind, int load, AlertKind lowAlert, AlertKind outAlert)
+    {
+        public byte Kind { get; } = kind;
+        public int Load { get; } = load;
+        public int Left { get; set; } = load;
+        public AlertKind LowAlert { get; } = lowAlert;
+        public AlertKind OutAlert { get; } = outAlert;
     }
 
     private void WriteCorruption(SampleFormatWriter w, TimeSpan offset, int index)
@@ -142,7 +210,7 @@ internal sealed class MissionSimulator(Scenario scenario)
             _ => (14_000 + _random.Next(3_000), 60 + _random.Next(80), 0.2 + _random.NextDouble() * 0.3, 25_000), // short range
         };
         return new Emitter(
-            (uint)id, lat, lon, freq, pri, (float)pw, range,
+            (uint)id, lat, lon, freq, pri, (float)pw, range, CanTrack: family >= 1, CanLaunch: family >= 2,
             ScanPeriodS: 3 + _random.NextDouble() * 5,
             DwellS: 0.6 + _random.NextDouble() * 1.2,
             OnS: 120 + _random.NextDouble() * 480,
@@ -164,9 +232,13 @@ internal sealed class MissionSimulator(Scenario scenario)
     private double Noise(double sigma) => sigma * (_random.NextDouble() + _random.NextDouble() + _random.NextDouble() - 1.5);
 
     private sealed record Emitter(
-        uint Id, double Lat, double Lon, float FrequencyMHz, float PriUs, float PulseWidthUs, double RangeM,
+        uint Id, double Lat, double Lon, float FrequencyMHz, float PriUs, float PulseWidthUs, double RangeM, bool CanTrack, bool CanLaunch,
         double ScanPeriodS, double DwellS, double OnS, double OffS, double PhaseS)
     {
+        public double LastSeen { get; set; } = double.NegativeInfinity;
+        public bool Locked { get; set; }
+        public double? LaunchAt { get; set; }
+
         public bool IsOn(double t) => (t + PhaseS) % (OnS + OffS) < OnS;
         public bool Illuminating(double t) => (t + PhaseS) % ScanPeriodS < DwellS;
     }

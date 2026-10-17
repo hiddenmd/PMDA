@@ -14,6 +14,12 @@ public sealed record Position(double Lat, double Lon, float AltM);
 /// <summary>Everything that happened in one step of flight time, starting at <see cref="OffsetMs"/>.</summary>
 public sealed record PlaybackFrame(long OffsetMs, IReadOnlyList<EmitterHit> Emitters, IReadOnlyList<CountermeasureCount> Countermeasures, Position? Position);
 
+/// <summary>The flight path, downsampled: parallel arrays, T in ms from the flight start, in time order.</summary>
+public sealed record FlightTrack(long[] T, double[] Lat, double[] Lon, float[] AltM);
+
+/// <summary>One aural warning. Bearing is relative to the aircraft nose, like the RWR's.</summary>
+public sealed record AlertRecord(long OffsetMs, AlertKind Kind, int? EmitterId, float? BearingDeg);
+
 public sealed record FlightOverview(long SpanMs, int Buckets, IReadOnlyDictionary<EventType, long[]> Counts);
 
 /// <summary>
@@ -131,6 +137,74 @@ public sealed class PlaybackRepository(string connectionString)
             series[Math.Clamp(bucket, 0, buckets - 1)] += count;
         }
         return new FlightOverview(spanMs, buckets, counts);
+    }
+
+    public const int MaxTrackPoints = 20_000;
+    public const int MaxAlerts = 20_000;
+
+    /// <summary>
+    /// The navigation track in at most <paramref name="points"/> time slices, each the average position of its
+    /// samples at their average time. Null when the flight does not exist; empty arrays when it has no positions.
+    /// Averaging longitudes is wrong across the antimeridian; flights there would need a different reduction.
+    /// </summary>
+    public async Task<FlightTrack?> GetTrackAsync(Guid flightId, int points, CancellationToken ct)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(points, 2);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(points, MaxTrackPoints);
+
+        await using var conn = new SqlConnection(connectionString);
+        var flight = await conn.QuerySingleOrDefaultAsync<(DateTime StartUtc, DateTime? LastEventUtc)>(new CommandDefinition(
+            "SELECT StartUtc, LastEventUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
+        if (flight == default)
+            return null;
+
+        var spanMs = flight.LastEventUtc is { } last ? Math.Max(1, (long)(last - flight.StartUtc).TotalMilliseconds + 1) : 1;
+        var slices = (await conn.QueryAsync<(long T, double Lat, double Lon, double AltM)>(new CommandDefinition("""
+            WITH n AS (
+                SELECT DATEDIFF_BIG(MILLISECOND, @Start, TimeUtc) AS T, Lat, Lon, AltM
+                FROM dbo.FlightEvent
+                WHERE FlightId = @flightId AND EventType = @Navigation AND Lat IS NOT NULL AND Lon IS NOT NULL AND TimeUtc >= @Start
+            )
+            SELECT AVG(T) AS T, AVG(Lat) AS Lat, AVG(Lon) AS Lon, ISNULL(AVG(CAST(AltM AS float)), 0) AS AltM
+            FROM n
+            GROUP BY T * @Points / @SpanMs
+            ORDER BY T;
+            """,
+            new { flightId, Start = flight.StartUtc, Points = (long)points, SpanMs = spanMs, Navigation = (byte)EventType.Navigation },
+            commandTimeout: 120,
+            cancellationToken: ct))).AsList();
+
+        return new FlightTrack(
+            slices.Select(x => x.T).ToArray(),
+            slices.Select(x => x.Lat).ToArray(),
+            slices.Select(x => x.Lon).ToArray(),
+            slices.Select(x => (float)x.AltM).ToArray());
+    }
+
+    /// <summary>Aural warnings in time order (at most <see cref="MaxAlerts"/>); null when the flight does not exist.</summary>
+    public async Task<IReadOnlyList<AlertRecord>?> GetAlertsAsync(Guid flightId, CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connectionString);
+        var start = await GetStartAsync(conn, flightId, ct);
+        if (start is null)
+            return null;
+
+        var rows = await conn.QueryAsync<(long OffsetMs, short Kind, int? EmitterId, float? BearingDeg)>(new CommandDefinition("""
+            SELECT TOP (@Max) DATEDIFF_BIG(MILLISECOND, @Start, TimeUtc) AS OffsetMs, ISNULL(SubType, 0) AS Kind, EmitterId, BearingDeg
+            FROM dbo.FlightEvent
+            WHERE FlightId = @flightId AND EventType = @Warning
+            ORDER BY TimeUtc, Seq;
+            """,
+            new { flightId, Start = start.Value, Max = MaxAlerts, Warning = (byte)EventType.Warning },
+            commandTimeout: 120,
+            cancellationToken: ct));
+
+        return rows.Select(r => new AlertRecord(
+                r.OffsetMs,
+                Enum.IsDefined((AlertKind)r.Kind) ? (AlertKind)r.Kind : AlertKind.Unknown,
+                r.EmitterId,
+                r.BearingDeg is { } b ? NormalizeDeg(b) : null))
+            .ToList();
     }
 
     private static async Task<DateTime?> GetStartAsync(SqlConnection conn, Guid flightId, CancellationToken ct) =>

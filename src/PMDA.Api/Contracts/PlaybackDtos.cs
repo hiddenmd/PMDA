@@ -33,3 +33,15 @@ public sealed record FlightOverviewDto(long SpanMs, int Buckets, OverviewSeriesD
     public static FlightOverviewDto From(FlightOverview o) => new(
         o.SpanMs, o.Buckets, o.Counts.OrderBy(c => c.Key).Select(c => new OverviewSeriesDto(c.Key, c.Value)).ToArray());
 }
+
+/// <summary>The downsampled flight path as parallel arrays; T is ms from the flight start.</summary>
+public sealed record FlightTrackDto(long[] T, double[] Lat, double[] Lon, float[] AltM)
+{
+    public static FlightTrackDto From(FlightTrack t) => new(t.T, t.Lat, t.Lon, t.AltM);
+}
+
+/// <param name="BearingDeg">Relative to the aircraft nose, clockwise, like the RWR.</param>
+public sealed record AlertDto(long OffsetMs, AlertKind Kind, int? EmitterId, float? BearingDeg);
+
+/// <param name="TileUrl">Leaflet URL template for base-map tiles; null means no base map (track on a plain grid).</param>
+public sealed record MapSettingsDto(string? TileUrl, string? Attribution, int MaxZoom);

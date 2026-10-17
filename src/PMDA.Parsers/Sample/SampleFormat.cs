@@ -38,6 +38,7 @@ public static class SampleFormat
     public const ushort EmitterMessage = 0x0001;
     public const ushort CountermeasureMessage = 0x0002;
     public const ushort NavigationMessage = 0x0003;
+    public const ushort AlertMessage = 0x0004;
 
     public static ushort Checksum(ReadOnlySpan<byte> payload)
     {
@@ -50,7 +51,8 @@ public static class SampleFormat
     public static DecoderRegistry AddSampleDecoders(this DecoderRegistry registry) => registry
         .AddShared(new SampleEmitterDecoder())
         .AddShared(new SampleCountermeasureDecoder())
-        .AddShared(new SampleNavigationDecoder());
+        .AddShared(new SampleNavigationDecoder())
+        .AddShared(new SampleAlertDecoder());
 }
 
 public sealed class SampleAdapter : ICustomerAdapter
@@ -279,6 +281,39 @@ public sealed class SampleNavigationDecoder : IPayloadDecoder
             Lat = BinaryPrimitives.ReadDoubleLittleEndian(p),
             Lon = BinaryPrimitives.ReadDoubleLittleEndian(p[8..]),
             AltM = BinaryPrimitives.ReadSingleLittleEndian(p[16..]),
+        };
+        error = null;
+        return true;
+    }
+}
+
+/// <summary>
+/// Aural warning. Payload: u16 alert kind (<see cref="AlertKind"/> values), u16 reserved, u32 emitter id
+/// (0 = none), f32 relative bearing deg (NaN = none).
+/// </summary>
+public sealed class SampleAlertDecoder : IPayloadDecoder
+{
+    public const int PayloadSize = 12;
+    public ushort MessageType => SampleFormat.AlertMessage;
+
+    public bool TryDecode(in RawRecord record, out FlightEvent evt, out string? error)
+    {
+        var p = record.Payload.Span;
+        if (p.Length != PayloadSize)
+        {
+            evt = default;
+            error = $"Alert payload is {p.Length} bytes, expected {PayloadSize}.";
+            return false;
+        }
+        var emitterId = BinaryPrimitives.ReadUInt32LittleEndian(p[4..]);
+        var bearing = BinaryPrimitives.ReadSingleLittleEndian(p[8..]);
+        evt = new FlightEvent
+        {
+            TimeUtc = record.TimeUtc,
+            EventType = EventType.Warning,
+            SubType = (short)BinaryPrimitives.ReadUInt16LittleEndian(p),
+            EmitterId = emitterId == 0 ? null : (int)emitterId,
+            BearingDeg = float.IsFinite(bearing) ? bearing : null,
         };
         error = null;
         return true;

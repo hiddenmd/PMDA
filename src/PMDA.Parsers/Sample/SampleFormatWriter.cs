@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using PMDA.Core.Events;
 
 namespace PMDA.Parsers.Sample;
 
@@ -44,6 +45,16 @@ public sealed class SampleFormatWriter(Stream stream)
         BinaryPrimitives.WriteDoubleLittleEndian(p[8..], lon);
         BinaryPrimitives.WriteSingleLittleEndian(p[16..], altM);
         WriteRecord(SampleFormat.NavigationMessage, offset, p);
+    }
+
+    public void WriteAlert(TimeSpan offset, AlertKind kind, uint emitterId = 0, float? bearingDeg = null)
+    {
+        Span<byte> p = stackalloc byte[SampleAlertDecoder.PayloadSize];
+        BinaryPrimitives.WriteUInt16LittleEndian(p, (ushort)kind);
+        BinaryPrimitives.WriteUInt16LittleEndian(p[2..], 0);
+        BinaryPrimitives.WriteUInt32LittleEndian(p[4..], emitterId);
+        BinaryPrimitives.WriteSingleLittleEndian(p[8..], bearingDeg ?? float.NaN);
+        WriteRecord(SampleFormat.AlertMessage, offset, p);
     }
 
     public void WriteRecord(ushort messageType, TimeSpan offset, ReadOnlySpan<byte> payload, bool corruptChecksum = false)

@@ -29,8 +29,12 @@ public sealed class PlaybackRepositoryTests(SqlDatabase db) : IAsyncLifetime
             Cm(2100, kind: 1, count: 3),
             Cm(2600, kind: 1, count: 2),
             Cm(2600, kind: 2, count: 2),
-            // step 5: emitter 7 again
+            // step 5: emitter 7 again, a lock and a launch from it, then a chaff-low call
             Emitter(5500, 7, bearing: 180, freq: 9000, amplitude: -30),
+            Alert(5500, AlertKind.RadarLock, emitterId: 7, bearing: -90),
+            Alert(5400, AlertKind.MissileLaunch, emitterId: 7, bearing: 181),
+            Alert(5450, AlertKind.ChaffLow),
+            Alert(5480, (AlertKind)99), // a code this build does not know
         ]);
     }
 
@@ -95,6 +99,45 @@ public sealed class PlaybackRepositoryTests(SqlDatabase db) : IAsyncLifetime
         Assert.Equal(2, overview.Counts[EventType.Navigation].Sum());
     }
 
+    [Fact]
+    public async Task Track_averages_positions_per_slice_in_time_order()
+    {
+        var track = await _playback.GetTrackAsync(_flightId, 2, default);
+
+        Assert.NotNull(track);
+        // Both positions fall in the first half of the 5.5 s flight, so they share one slice.
+        Assert.Equal([450L], track.T);
+        Assert.Equal(44.1, track.Lat[0], 6);
+        Assert.Equal(26.1, track.Lon[0], 6);
+        Assert.Equal(3050f, track.AltM[0], 0.01f);
+
+        var fine = await _playback.GetTrackAsync(_flightId, 1000, default);
+        Assert.Equal([200L, 700L], fine!.T);
+    }
+
+    [Fact]
+    public async Task Alerts_come_in_time_order_with_unknown_codes_mapped()
+    {
+        var alerts = await _playback.GetAlertsAsync(_flightId, default);
+
+        Assert.NotNull(alerts);
+        Assert.Equal(
+            [
+                new AlertRecord(5400, AlertKind.MissileLaunch, 7, 181f),
+                new AlertRecord(5450, AlertKind.ChaffLow, null, null),
+                new AlertRecord(5480, AlertKind.Unknown, null, null),
+                new AlertRecord(5500, AlertKind.RadarLock, 7, 270f), // bearing normalised to 0–360
+            ],
+            alerts);
+    }
+
+    [Fact]
+    public async Task Track_and_alerts_for_an_unknown_flight_are_null()
+    {
+        Assert.Null(await _playback.GetTrackAsync(Guid.NewGuid(), 100, default));
+        Assert.Null(await _playback.GetAlertsAsync(Guid.NewGuid(), default));
+    }
+
     private async Task<Guid> StoreFlightAsync(FlightEvent[] events)
     {
         var id = Guid.NewGuid();
@@ -133,5 +176,14 @@ public sealed class PlaybackRepositoryTests(SqlDatabase db) : IAsyncLifetime
         Lat = lat,
         Lon = lon,
         AltM = alt,
+    };
+
+    private static FlightEvent Alert(int ms, AlertKind kind, int? emitterId = null, float? bearing = null) => new()
+    {
+        TimeUtc = Start.AddMilliseconds(ms),
+        EventType = EventType.Warning,
+        SubType = (short)kind,
+        EmitterId = emitterId,
+        BearingDeg = bearing,
     };
 }

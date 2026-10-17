@@ -1,6 +1,6 @@
 import { Loader2, Pause, Play, RotateCcw, SkipBack, SkipForward } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { formatElapsed, formatUtcClock } from '../../lib/format'
+import { formatElapsed, formatHms, formatUtcClock } from '../../lib/format'
 import type { TransportStatus } from '../../machines/playbackMachine'
 import { SPEEDS, type Speed } from './playbackView'
 
@@ -8,6 +8,7 @@ interface TransportBarProps {
   status: TransportStatus
   speed: Speed
   positionMs: number
+  durationMs: number
   startUtc: string
   onToggle: () => void
   onStep: (direction: -1 | 1) => void
@@ -15,7 +16,7 @@ interface TransportBarProps {
   children?: ReactNode
 }
 
-export function TransportBar({ status, speed, positionMs, startUtc, onToggle, onStep, onSpeed, children }: TransportBarProps) {
+export function TransportBar({ status, speed, positionMs, durationMs, startUtc, onToggle, onStep, onSpeed, children }: TransportBarProps) {
   const playing = status === 'playing' || status === 'buffering'
   const toggleLabel = status === 'ended' ? 'Replay from start' : playing ? 'Pause' : 'Play'
   const ToggleIcon = status === 'ended' ? RotateCcw : playing ? Pause : Play
@@ -58,8 +59,8 @@ export function TransportBar({ status, speed, positionMs, startUtc, onToggle, on
 
       <div className="transport__time" aria-live="off">
         <span title="UTC time at the playhead">{formatUtcClock(new Date(Date.parse(startUtc) + positionMs))}</span>
-        <span className="muted" title="Elapsed since flight start">
-          {formatElapsed(positionMs)}
+        <span className="muted" title="Elapsed since flight start, of the whole flight">
+          <span>{formatElapsed(positionMs)}</span> / <span>{formatHms(durationMs)}</span>
         </span>
       </div>
     </div>

@@ -30,3 +30,8 @@ export type ScatterSeries = Schemas['ScatterSeriesDto']
 export type ProfileSeries = Schemas['ProfileSeriesDto']
 export type RateSeries = Schemas['RateSeriesDto']
 export type FlightSort = NonNullable<import('./flights').FlightListParams['sort']>
+
+export type AlertKind = Schemas['AlertKind']
+export type Alert = Schemas['AlertDto']
+export type FlightTrack = Schemas['FlightTrackDto']
+export type MapSettings = Schemas['MapSettingsDto']

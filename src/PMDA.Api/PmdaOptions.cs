@@ -30,3 +30,19 @@ public sealed class ImportsOptions
 
     public string ResolvedTempDirectory => TempDirectory ?? Path.Combine(Path.GetTempPath(), "pmda-uploads");
 }
+
+public sealed class MapOptions
+{
+    public const string Section = "Map";
+
+    /// <summary>
+    /// Base-map tile URL template ({z}/{x}/{y}, optional {s} and {r}). Tile requests reveal the area being viewed to
+    /// the tile server, so classified sites should point this at an internal tile server or leave it empty for no base map.
+    /// </summary>
+    public string? TileUrl { get; set; }
+
+    public string? Attribution { get; set; }
+
+    [Range(1, 22)]
+    public int MaxZoom { get; set; } = 18;
+}

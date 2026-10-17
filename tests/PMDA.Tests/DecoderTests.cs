@@ -50,6 +50,30 @@ public class DecoderTests
     }
 
     [Fact]
+    public void Decodes_audio_alerts_with_and_without_an_emitter()
+    {
+        using var s = SampleFile(w =>
+        {
+            w.WriteAlert(TimeSpan.FromSeconds(7), AlertKind.MissileLaunch, emitterId: 12, bearingDeg: 135);
+            w.WriteAlert(TimeSpan.FromSeconds(8), AlertKind.ChaffLow);
+        });
+        var records = ReadAll(s, new ListDiagnostics());
+        var decoder = new SampleAlertDecoder();
+
+        Assert.True(decoder.TryDecode(records[0], out var launch, out _));
+        Assert.Equal(EventType.Warning, launch.EventType);
+        Assert.Equal(Start.AddSeconds(7), launch.TimeUtc);
+        Assert.Equal((short)AlertKind.MissileLaunch, launch.SubType);
+        Assert.Equal(12, launch.EmitterId);
+        Assert.Equal(135f, launch.BearingDeg);
+
+        Assert.True(decoder.TryDecode(records[1], out var low, out _));
+        Assert.Equal((short)AlertKind.ChaffLow, low.SubType);
+        Assert.Null(low.EmitterId);
+        Assert.Null(low.BearingDeg);
+    }
+
+    [Fact]
     public void Wrong_payload_length_fails_with_reason()
     {
         var record = new RawRecord(SampleFormat.EmitterMessage, 0, Start, new byte[5]);

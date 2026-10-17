@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react'
-import type { EventType, FlightOverview } from '../../api/types'
+import { useEffect, useMemo, useRef } from 'react'
+import type { Alert, EventType, FlightOverview } from '../../api/types'
 import { formatElapsed, formatUtcClock } from '../../lib/format'
+import { ALERTS } from '../alerts/alerts'
+import { timeTicks } from './timeAxis'
 
 const SERIES: { type: EventType; label: string; color: string }[] = [
   { type: 'Navigation', label: 'Navigation', color: '--color-series-navigation' },
@@ -8,17 +10,25 @@ const SERIES: { type: EventType; label: string; color: string }[] = [
   { type: 'Countermeasure', label: 'Countermeasures', color: '--color-series-countermeasure' },
 ]
 
+/** Critical alerts as full-height red lines, warnings as short amber ticks; new-threat tones are too many to mark. */
+const MARKS = {
+  critical: { label: 'Missile alerts', color: '--color-alert-critical' },
+  warning: { label: 'Lock / countermeasure alerts', color: '--color-alert-warning' },
+} as const
+
 interface TimelineProps {
   overview: FlightOverview | undefined
+  alerts: readonly Alert[] | undefined
   positionMs: number
   durationMs: number
   startUtc: string
   onSeek: (positionMs: number) => void
 }
 
-/** Event-density strip with a native range input on top as the scrubber (keyboard and screen-reader friendly). */
-export function Timeline({ overview, positionMs, durationMs, startUtc, onSeek }: TimelineProps) {
+/** Event-density strip with alert marks, a native range input on top as the scrubber, and a UTC time axis. */
+export function Timeline({ overview, alerts, positionMs, durationMs, startUtc, onSeek }: TimelineProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const startEpoch = Date.parse(startUtc)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -28,8 +38,8 @@ export function Timeline({ overview, positionMs, durationMs, startUtc, onSeek }:
     const draw = () => {
       const rect = canvas.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
-      canvas.width = Math.max(1, Math.floor(rect.width * dpr))
-      canvas.height = Math.max(1, Math.floor(rect.height * dpr))
+      canvas.width = Math.max(1, Math.round(rect.width * dpr))
+      canvas.height = Math.max(1, Math.round(rect.height * dpr))
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, rect.width, rect.height)
 
@@ -52,6 +62,26 @@ export function Timeline({ overview, positionMs, durationMs, startUtc, onSeek }:
           y -= h
         }
       }
+
+      // Warnings first so missile lines draw on top of them.
+      const span = Math.max(1, durationMs)
+      for (const severity of ['warning', 'critical'] as const) {
+        ctx.fillStyle = css.getPropertyValue(MARKS[severity].color).trim()
+        for (const a of alerts ?? []) {
+          if (ALERTS[a.kind].severity !== severity) continue
+          const x = Math.round((a.offsetMs / span) * rect.width)
+          if (severity === 'critical') {
+            ctx.fillRect(x - 1, 0, 2, rect.height)
+            ctx.beginPath() // a small flag on top so a single line still catches the eye
+            ctx.moveTo(x - 4, 0)
+            ctx.lineTo(x + 4, 0)
+            ctx.lineTo(x, 5)
+            ctx.fill()
+          } else {
+            ctx.fillRect(x - 0.5, 0, 1.5, rect.height * 0.4)
+          }
+        }
+      }
     }
 
     draw()
@@ -63,9 +93,12 @@ export function Timeline({ overview, positionMs, durationMs, startUtc, onSeek }:
       observer.disconnect()
       themeObserver.disconnect()
     }
-  }, [overview])
+  }, [overview, alerts, durationMs])
 
-  const clock = formatUtcClock(new Date(Date.parse(startUtc) + positionMs))
+  const ticks = useMemo(() => timeTicks(startEpoch, durationMs, 10), [startEpoch, durationMs])
+  const severities = useMemo(() => new Set((alerts ?? []).map((a) => ALERTS[a.kind].severity)), [alerts])
+  const clock = formatUtcClock(new Date(startEpoch + positionMs))
+
   return (
     <div className="transport-timeline">
       <div className="timeline">
@@ -81,6 +114,19 @@ export function Timeline({ overview, positionMs, durationMs, startUtc, onSeek }:
           onChange={(e) => onSeek(Number(e.target.value))}
         />
       </div>
+      <div className="timeline__axis" aria-hidden>
+        <span className="timeline__edge" title="Flight start (UTC)">
+          {formatUtcClock(new Date(startEpoch))}
+        </span>
+        {ticks.map((t) => (
+          <span key={t.offsetMs} className="timeline__tick" style={{ left: `${(t.offsetMs / durationMs) * 100}%` }}>
+            {t.label}
+          </span>
+        ))}
+        <span className="timeline__edge timeline__edge--end" title="Flight end (UTC)">
+          {formatUtcClock(new Date(startEpoch + durationMs))}
+        </span>
+      </div>
       <div className="timeline__legend" aria-hidden>
         {SERIES.map((s) => (
           <span key={s.type}>
@@ -88,6 +134,14 @@ export function Timeline({ overview, positionMs, durationMs, startUtc, onSeek }:
             {s.label}
           </span>
         ))}
+        {(['critical', 'warning'] as const)
+          .filter((s) => severities.has(s))
+          .map((s) => (
+            <span key={s}>
+              <span className="legend-swatch legend-swatch--line" style={{ background: `var(${MARKS[s].color})` }} />
+              {MARKS[s].label}
+            </span>
+          ))}
       </div>
     </div>
   )

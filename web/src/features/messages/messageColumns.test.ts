@@ -42,5 +42,9 @@ describe('message tables', () => {
 
     const cm = MESSAGE_TABLES.find((t) => t.type === 'Countermeasure')!
     expect(cm.columns.map((c) => c.value(row(1, 0, { subType: 2, count: 4 })))).toEqual(['1', 'Flare', '4'])
+
+    const alerts = MESSAGE_TABLES.find((t) => t.type === 'Warning')!
+    expect(alerts.columns.map((c) => c.value(row(9, 0, { subType: 3, emitterId: 12, bearingDeg: 7 })))).toEqual(['9', 'Missile launch', '12', '007'])
+    expect(alerts.columns[1].value(row(9, 0, { subType: 42 }))).toBe('Alert') // a code this build does not know
   })
 })

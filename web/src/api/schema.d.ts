@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Base-map tile source for the map panel. */
+        get: operations["GetMapSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/state": {
         parameters: {
             query?: never;
@@ -305,6 +322,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/flights/{id}/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The navigation track, downsampled to at most `points` positions. */
+        get: operations["GetFlightTrack"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/{id}/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aural warnings (new threat, lock, missile launch, missile approach, countermeasures low/out) in time order. */
+        get: operations["GetFlightAlerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/flights/{id}/events": {
         parameters: {
             query?: never;
@@ -445,6 +496,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AlertDto: {
+            /** Format: int64 */
+            offsetMs: number;
+            kind: components["schemas"]["AlertKind"];
+            /** Format: int32 */
+            emitterId: number | null;
+            /** Format: float */
+            bearingDeg: number | null;
+        };
+        /** @enum {unknown} */
+        AlertKind: "Unknown" | "NewThreat" | "RadarLock" | "MissileLaunch" | "MissileApproach" | "ChaffLow" | "FlaresLow" | "ChaffOut" | "FlaresOut";
         AuthStateDto: {
             setupRequired: boolean;
             setupAllowed: boolean;
@@ -622,6 +684,11 @@ export interface components {
             /** Format: int64 */
             total: number;
         };
+        /**
+         * @default ImportedNewest
+         * @enum {unknown}
+         */
+        FlightSort: "ImportedNewest" | "StartNewest" | "StartOldest" | "Tail" | "MostEvents";
         /** @enum {unknown} */
         FlightStatus: "Importing" | "Completed" | "Failed" | "Deleting";
         FlightSummaryDto: {
@@ -640,6 +707,12 @@ export interface components {
             /** Format: date-time */
             importedUtc: string;
         };
+        FlightTrackDto: {
+            t: number[];
+            lat: number[];
+            lon: number[];
+            altM: number[];
+        };
         HttpValidationProblemDetails: {
             type?: string | null;
             title?: string | null;
@@ -651,6 +724,8 @@ export interface components {
                 [key: string]: string[];
             };
         };
+        /** Format: binary */
+        IFormFile: string;
         ImportJobDto: {
             /** Format: uuid */
             id: string;
@@ -696,6 +771,17 @@ export interface components {
             userName: string;
             password: string;
         };
+        MapSettingsDto: {
+            tileUrl: string | null;
+            attribution: string | null;
+            /** Format: int32 */
+            maxZoom: number;
+        };
+        /**
+         * @default null
+         * @enum {unknown}
+         */
+        NullableOfFlightStatus: "Importing" | "Completed" | "Failed" | "Deleting" | null;
         OverviewSeriesDto: {
             eventType: components["schemas"]["EventType"];
             counts: number[];
@@ -858,6 +944,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    GetMapSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapSettingsDto"];
+                };
+            };
+        };
+    };
     GetAuthState: {
         parameters: {
             query?: never;
@@ -1236,8 +1342,7 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
+                    file: components["schemas"]["IFormFile"];
                 };
             };
         };
@@ -1359,11 +1464,11 @@ export interface operations {
                 customerId?: string;
                 tail?: string;
                 mission?: string;
-                status?: "Importing" | "Completed" | "Failed" | "Deleting" | null;
+                status?: components["schemas"]["NullableOfFlightStatus"];
                 startFrom?: string;
                 startTo?: string;
                 hasProblems?: boolean;
-                sort?: "ImportedNewest" | "StartNewest" | "StartOldest" | "Tail" | "MostEvents";
+                sort?: components["schemas"]["FlightSort"];
             };
             header?: never;
             path?: never;
@@ -1666,6 +1771,79 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFlightTrack: {
+        parameters: {
+            query?: {
+                points?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlightTrackDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFlightAlerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertDto"][];
                 };
             };
             /** @description Not Found */

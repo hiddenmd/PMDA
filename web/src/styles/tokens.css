@@ -35,6 +35,10 @@
   --color-series-5: #34d399;
   --color-series-6: #f472b6;
 
+  /* Cockpit alerts: missile red, lock/countermeasure orange (marked by shape too) */
+  --color-alert-critical: #ff4d4d;
+  --color-alert-warning: #fb923c;
+
   --shadow-popover: 0 8px 28px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.35);
 
   /* Type: IBM Plex, bundled */
@@ -95,6 +99,8 @@
   --color-series-4: #6d28d9;
   --color-series-5: #047857;
   --color-series-6: #be185d;
+  --color-alert-critical: #dc2626;
+  --color-alert-warning: #c2410c;
   --shadow-popover: 0 8px 28px rgb(24 24 27 / 0.14), 0 2px 6px rgb(24 24 27 / 0.08);
 
   color-scheme: light;

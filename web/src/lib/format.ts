@@ -41,11 +41,14 @@ export function formatUtcClock(date: Date): string {
   return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}Z`
 }
 
-/** Elapsed time as T+hh:mm:ss. */
-export function formatElapsed(ms: number): string {
+/** A length of time as hh:mm:ss. */
+export function formatHms(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))
-  return `T+${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`
+  return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`
 }
+
+/** Elapsed time as T+hh:mm:ss. */
+export const formatElapsed = (ms: number) => `T+${formatHms(ms)}`
 
 /** Human duration, e.g. 4h 10m, 12m 5s, 45s. */
 export function formatDuration(ms: number): string {

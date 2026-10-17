@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Options;
 using PMDA.Api.Contracts;
 using PMDA.Data;
 
@@ -21,7 +22,37 @@ public static class PlaybackEndpoints
         group.MapGet("/overview", Overview).WithName("GetFlightOverview")
             .WithSummary("Event counts per type in equal buckets across the whole flight.")
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/track", Track).WithName("GetFlightTrack")
+            .WithSummary("The navigation track, downsampled to at most `points` positions.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/alerts", Alerts).WithName("GetFlightAlerts")
+            .WithSummary("Aural warnings (new threat, lock, missile launch, missile approach, countermeasures low/out) in time order.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/map", (IOptions<MapOptions> map) =>
+                TypedResults.Ok(new MapSettingsDto(string.IsNullOrWhiteSpace(map.Value.TileUrl) ? null : map.Value.TileUrl, map.Value.Attribution, map.Value.MaxZoom)))
+            .WithTags("Playback").WithName("GetMapSettings").WithSummary("Base-map tile source for the map panel.");
         return app;
+    }
+
+    private static async Task<Results<Ok<FlightTrackDto>, ValidationProblem, NotFound>> Track(
+        Guid id, PlaybackRepository playback, CancellationToken ct, int points = 4_000)
+    {
+        if (points is < 2 or > PlaybackRepository.MaxTrackPoints)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { [nameof(points)] = [$"Must be between 2 and {PlaybackRepository.MaxTrackPoints}."] });
+
+        var track = await playback.GetTrackAsync(id, points, ct);
+        return track is null ? TypedResults.NotFound() : TypedResults.Ok(FlightTrackDto.From(track));
+    }
+
+    private static async Task<Results<Ok<AlertDto[]>, NotFound>> Alerts(Guid id, PlaybackRepository playback, CancellationToken ct)
+    {
+        var alerts = await playback.GetAlertsAsync(id, ct);
+        return alerts is null
+            ? TypedResults.NotFound()
+            : TypedResults.Ok(alerts.Select(a => new AlertDto(a.OffsetMs, a.Kind, a.EmitterId, a.BearingDeg)).ToArray());
     }
 
     private static async Task<Results<Ok<PlaybackFramesDto>, ValidationProblem, NotFound>> Frames(

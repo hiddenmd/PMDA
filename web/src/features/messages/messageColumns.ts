@@ -1,4 +1,5 @@
 import type { EventRow, EventType } from '../../api/types'
+import { ALERTS, alertKindOf } from '../alerts/alerts'
 
 export interface Column {
   key: string
@@ -51,6 +52,16 @@ export const MESSAGE_TABLES: MessageTable[] = [
       seq,
       { key: 'kind', label: 'Kind', width: '90px', value: (r) => (r.subType === 1 ? 'Chaff' : r.subType === 2 ? 'Flare' : `Kind ${r.subType ?? '?'}`) },
       { key: 'count', label: 'Count', width: '64px', numeric: true, value: (r) => String(r.count ?? 1) },
+    ],
+  },
+  {
+    type: 'Warning',
+    label: 'Audio alerts',
+    columns: [
+      seq,
+      { key: 'alert', label: 'Alert', width: '140px', value: (r) => ALERTS[alertKindOf(r.subType)].label },
+      { key: 'emitter', label: 'Emitter', width: '72px', numeric: true, value: (r) => String(r.emitterId ?? '—') },
+      { key: 'brg', label: 'Brg °', width: '64px', numeric: true, value: (r) => pad3(r.bearingDeg) },
     ],
   },
 ]

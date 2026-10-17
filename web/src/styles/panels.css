@@ -316,6 +316,41 @@
   background: var(--color-accent);
   border-radius: 2px;
 }
+.timeline__axis {
+  position: relative;
+  height: calc(14px * var(--ui-scale));
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: calc(14px * var(--ui-scale));
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+}
+.timeline__tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+.timeline__tick::before {
+  /* a short tick mark up into the strip's edge */
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 1px;
+  height: 3px;
+  background: var(--color-border-strong);
+}
+.timeline__edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--color-foreground);
+}
+.timeline__edge--end {
+  left: auto;
+  right: 0;
+}
 .timeline__legend {
   display: flex;
   gap: var(--space-lg);
@@ -329,6 +364,11 @@
   margin-right: var(--space-sm);
   border-radius: 2px;
   vertical-align: -1px;
+}
+.legend-swatch--line {
+  width: 3px;
+  height: 11px;
+  vertical-align: -2px;
 }
 
 /* ---------- Message tables ---------- */
@@ -540,4 +580,26 @@
 }
 .graph-area .u-select {
   background: var(--color-selection);
+}
+
+/* ---------- Audio alerts ---------- */
+
+.segmented .count {
+  margin-left: var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-muted-foreground);
+}
+.alert-severity {
+  display: flex;
+  align-items: center;
+}
+.alert-severity--critical {
+  color: var(--color-alert-critical);
+}
+.alert-severity--warning {
+  color: var(--color-alert-warning);
+}
+.alert-severity--advisory {
+  color: var(--color-muted-foreground);
 }
