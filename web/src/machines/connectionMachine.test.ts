@@ -19,6 +19,7 @@ function fakeHub() {
     }),
     stop: vi.fn(async () => undefined),
     onImportUpdated: () => () => undefined,
+    onFlightsChanged: () => () => undefined,
     onReconnecting: sub(listeners.reconnecting),
     onReconnected: sub(listeners.reconnected),
     onClose: sub(listeners.close),

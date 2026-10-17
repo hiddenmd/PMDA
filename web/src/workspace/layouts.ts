@@ -1,7 +1,8 @@
 import type { DockviewApi, SerializedDockview } from 'dockview-react'
+import { DEFAULT_GRAPH, graphTitle, type GraphSettings } from '../features/graphs/graphKinds'
 import { storage } from '../lib/preferences'
 
-export type PanelKind = 'flights' | 'info' | 'scope' | 'emitters' | 'countermeasures'
+export type PanelKind = 'flights' | 'info' | 'scope' | 'emitters' | 'countermeasures' | 'messages' | 'graph'
 
 interface PanelSpec {
   title: string
@@ -15,6 +16,12 @@ export const PANELS: Record<PanelKind, PanelSpec> = {
   scope: { title: 'RWR scope' },
   emitters: { title: 'Active emitters' },
   countermeasures: { title: 'Countermeasures' },
+  messages: { title: 'Message tables' },
+  graph: { title: 'Graph', multiple: true },
+}
+
+function graphPanel(id: string, settings: GraphSettings) {
+  return { id, component: 'graph', title: graphTitle(settings), params: settings }
 }
 
 /** Opens a panel (or focuses it if it is single-instance and already open) next to the active one. */
@@ -29,11 +36,12 @@ export function openPanel(api: DockviewApi, kind: PanelKind, params?: Record<str
   }
   const id = spec.multiple ? `${kind}-${Date.now().toString(36)}` : kind
   const active = api.activeGroup
+  const graphSettings = kind === 'graph' ? { ...DEFAULT_GRAPH, ...params } : undefined
   return api.addPanel({
     id,
     component: kind,
-    title: spec.title,
-    params,
+    title: graphSettings ? graphTitle(graphSettings) : spec.title,
+    params: graphSettings ?? params,
     ...(active ? { position: { referenceGroup: active, direction: 'within' as const } } : {}),
   })
 }
@@ -60,6 +68,24 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
         title: PANELS.countermeasures.title,
         position: { referencePanel: 'emitters', direction: 'below' },
       })
+      api.addPanel({ id: 'messages', component: 'messages', title: PANELS.messages.title, position: { referencePanel: 'scope', direction: 'below' } })
+      api.getPanel('flights')?.api.setActive()
+    },
+  },
+  {
+    id: 'analysis',
+    name: 'Analysis',
+    build(api) {
+      api.clear()
+      api.addPanel({ id: 'flights', component: 'flights', title: PANELS.flights.title, initialWidth: 300 })
+      api.addPanel({ id: 'info', component: 'info', title: PANELS.info.title, position: { referencePanel: 'flights', direction: 'within' } })
+      api.addPanel({ ...graphPanel('graph-bearing', { ...DEFAULT_GRAPH, kind: 'bearing' }), position: { referencePanel: 'flights', direction: 'right' } })
+      api.addPanel({ ...graphPanel('graph-frequency', { ...DEFAULT_GRAPH, kind: 'parameter', param: 'Frequency' }), position: { referencePanel: 'graph-bearing', direction: 'below' } })
+      // Absolute 'right': a full-height column at the edge, not a split of one graph.
+      api.addPanel({ id: 'scope', component: 'scope', title: PANELS.scope.title, position: { direction: 'right' }, initialWidth: 380 })
+      api.addPanel({ ...graphPanel('graph-scatter', { ...DEFAULT_GRAPH, kind: 'scatter', x: 'Frequency', y: 'Pri' }), position: { referencePanel: 'scope', direction: 'below' } })
+      api.addPanel({ id: 'messages', component: 'messages', title: PANELS.messages.title, position: { referencePanel: 'graph-frequency', direction: 'below' } })
+      api.addPanel({ ...graphPanel('graph-profile', { ...DEFAULT_GRAPH, kind: 'profile' }), position: { referencePanel: 'messages', direction: 'within' } })
       api.getPanel('flights')?.api.setActive()
     },
   },

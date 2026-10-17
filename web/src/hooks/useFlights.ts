@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
-import { getFlight, getFlightDiagnostics, listFlights, type FlightListParams } from '../api/flights'
+import { getFlight, getFlightDiagnostics, listCustomers, listFlights, type FlightListParams } from '../api/flights'
 import { isFinalImportState } from '../api/types'
 import { useImportHub } from './useImportHub'
 
@@ -9,6 +9,10 @@ export const flightKeys = {
   list: (params: FlightListParams) => ['flights', 'list', params] as const,
   detail: (id: string) => ['flights', 'detail', id] as const,
   diagnostics: (id: string) => ['flights', 'diagnostics', id] as const,
+}
+
+export function useCustomers() {
+  return useQuery({ queryKey: ['flights', 'customers'], queryFn: ({ signal }) => listCustomers(signal), staleTime: 60_000 })
 }
 
 export function useFlights(params: FlightListParams) {
@@ -49,13 +53,15 @@ export function useLiveFlightRefresh() {
     wasConnected.current = status === 'connected'
   }, [status, queryClient])
 
-  useEffect(
-    () =>
-      hub.onImportUpdated((job) => {
-        if (job.flightId && isFinalImportState(job.state)) {
-          void queryClient.invalidateQueries({ queryKey: flightKeys.all })
-        }
-      }),
-    [hub, queryClient],
-  )
+  useEffect(() => {
+    const refresh = () => void queryClient.invalidateQueries({ queryKey: flightKeys.all })
+    const offImport = hub.onImportUpdated((job) => {
+      if (job.flightId && isFinalImportState(job.state)) refresh()
+    })
+    const offChanged = hub.onFlightsChanged(refresh)
+    return () => {
+      offImport()
+      offChanged()
+    }
+  }, [hub, queryClient])
 }

@@ -17,6 +17,7 @@ function fakeHub() {
       connected = false
     }),
     onImportUpdated: () => () => undefined,
+    onFlightsChanged: () => () => undefined,
     onReconnecting: () => () => undefined,
     onReconnected: () => () => undefined,
     onClose: () => () => undefined,

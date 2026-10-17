@@ -12,6 +12,8 @@ export interface ImportHub {
   start(): Promise<void>
   stop(): Promise<void>
   onImportUpdated(listener: Listener<[ImportJob]>): Unsubscribe
+  /** Flights were deleted somewhere; refresh lists. */
+  onFlightsChanged(listener: Listener): Unsubscribe
   onReconnecting(listener: Listener): Unsubscribe
   onReconnected(listener: Listener): Unsubscribe
   onClose(listener: Listener): Unsubscribe
@@ -28,11 +30,13 @@ export function createImportHub(url: string = importHubPath): ImportHub {
     .build()
 
   const updated = new Set<Listener<[ImportJob]>>()
+  const flightsChanged = new Set<Listener>()
   const reconnecting = new Set<Listener>()
   const reconnected = new Set<Listener>()
   const closed = new Set<Listener>()
 
   connection.on('ImportUpdated', (job: ImportJob) => updated.forEach((l) => l(job)))
+  connection.on('FlightsChanged', () => flightsChanged.forEach((l) => l()))
   connection.onreconnecting(() => reconnecting.forEach((l) => l()))
   connection.onreconnected(() => reconnected.forEach((l) => l()))
   connection.onclose(() => closed.forEach((l) => l()))
@@ -60,6 +64,7 @@ export function createImportHub(url: string = importHubPath): ImportHub {
       return stopping
     },
     onImportUpdated: (l) => subscribe(updated, l),
+    onFlightsChanged: (l) => subscribe(flightsChanged, l),
     onReconnecting: (l) => subscribe(reconnecting, l),
     onReconnected: (l) => subscribe(reconnected, l),
     onClose: (l) => subscribe(closed, l),

@@ -7,7 +7,7 @@ export function FlightsPanel() {
   return (
     <div className="panel-body">
       <ImportPanel onOpenFlight={selectFlight} />
-      <FlightList selectedId={flightId} onSelect={selectFlight} />
+      <FlightList selectedId={flightId} onSelect={selectFlight} canManage />
     </div>
   )
 }

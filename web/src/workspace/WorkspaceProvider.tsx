@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createActor } from 'xstate'
+import { ApiError } from '../api/client'
 import { useFlight } from '../hooks/useFlights'
 import { playbackMachine } from '../machines/playbackMachine'
 import { usePlaybackShortcuts } from '../features/playback/usePlayback'
@@ -56,6 +57,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     window.history.replaceState(null, '', url)
   }, [])
 
+  // A selected flight that was deleted (here or by someone else) counts as no selection.
+  const notFound = flight.error instanceof ApiError && flight.error.status === 404
+
   const playable = flight.data && flight.data.id === flightId && flight.data.status === 'Completed' ? flight.data : undefined
   const durationMs = playable ? playbackDurationMs(playable) : 0
 
@@ -71,13 +75,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<WorkspaceValue>(
     () => ({
-      flightId,
+      flightId: notFound ? null : flightId,
       selectFlight,
       flight: flight.data && flight.data.id === flightId ? flight.data : undefined,
       flightLoading: flightId !== null && flight.isPending,
       playback: actor && playable ? { actor, durationMs, startUtc: playable.startUtc } : null,
     }),
-    [flightId, selectFlight, flight.data, flight.isPending, actor, playable, durationMs],
+    [flightId, notFound, selectFlight, flight.data, flight.isPending, actor, playable, durationMs],
   )
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>

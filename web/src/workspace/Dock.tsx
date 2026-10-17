@@ -2,6 +2,8 @@ import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type Dockview
 import 'dockview-react/dist/styles/dockview.css'
 import { ExternalLink, Maximize2, Minimize2, PictureInPicture2 } from 'lucide-react'
 import { useEffect, useRef, type FunctionComponent } from 'react'
+import { GraphPanel } from '../features/graphs/GraphPanel'
+import { MessagesPanel } from '../features/messages/MessagesPanel'
 import { LAYOUT_PRESETS, type LayoutStore, type PanelKind } from './layouts'
 import { CountermeasuresPanel } from './panels/CountermeasuresPanel'
 import { EmittersPanel } from './panels/EmittersPanel'
@@ -17,6 +19,8 @@ const components: Record<PanelKind, FunctionComponent<IDockviewPanelProps>> = {
   scope: ScopePanel,
   emitters: EmittersPanel,
   countermeasures: CountermeasuresPanel,
+  messages: MessagesPanel,
+  graph: GraphPanel as FunctionComponent<IDockviewPanelProps>,
 }
 
 interface DockProps {
