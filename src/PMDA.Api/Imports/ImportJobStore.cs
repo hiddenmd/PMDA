@@ -15,6 +15,9 @@ public sealed class ImportJobStore
 
     public void Remove(Guid id) => _jobs.TryRemove(id, out _);
 
+    /// <summary>True while any import is queued or running.</summary>
+    public bool HasActiveJobs() => _jobs.Values.Any(j => !ImportStates.IsFinal(j.State));
+
     public ImportJob? Find(Guid id) => _jobs.GetValueOrDefault(id);
 
     public IReadOnlyList<ImportJobSnapshot> List() =>

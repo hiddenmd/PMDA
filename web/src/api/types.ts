@@ -21,3 +21,12 @@ export type PlaybackFrames = Schemas['PlaybackFramesDto']
 export type EmitterHit = Schemas['EmitterHitDto']
 export type Position = Schemas['PositionDto']
 export type FlightOverview = Schemas['FlightOverviewDto']
+
+export type EventRow = Schemas['EventRowDto']
+export type EventPage = Schemas['EventPageDto']
+export type SeriesParam = Schemas['SeriesParam']
+export type ParameterSeries = Schemas['ParameterSeriesDto']
+export type ScatterSeries = Schemas['ScatterSeriesDto']
+export type ProfileSeries = Schemas['ProfileSeriesDto']
+export type RateSeries = Schemas['RateSeriesDto']
+export type FlightSort = NonNullable<import('./flights').FlightListParams['sort']>

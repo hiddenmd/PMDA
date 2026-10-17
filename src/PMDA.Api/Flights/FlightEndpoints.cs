@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.SignalR;
 using PMDA.Api.Contracts;
+using PMDA.Api.Imports;
 using PMDA.Data;
 
 namespace PMDA.Api.Flights;
@@ -13,6 +16,15 @@ public static class FlightEndpoints
         var group = app.MapGroup("/api/flights").WithTags("Flights");
         group.MapGet("/", List).WithName("ListFlights").WithSummary("Imported flights, filtered and sorted.");
         group.MapGet("/customers", Customers).WithName("ListCustomers").WithSummary("Customers that have flights.");
+
+        group.MapDelete("/{id:guid}", Delete).WithName("DeleteFlight").WithSummary("Delete one flight and its data.")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost("/delete", DeleteMany).WithName("DeleteFlights").WithSummary("Delete the given flights and their data.")
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapDelete("/", DeleteAll).WithName("DeleteAllFlights")
+            .WithSummary("Delete every flight. Requires confirm=DELETE; refused while imports run.")
+            .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapGet("/{id:guid}", Get).WithName("GetFlight")
             .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapGet("/{id:guid}/diagnostics", Diagnostics).WithName("GetFlightDiagnostics")
@@ -23,16 +35,16 @@ public static class FlightEndpoints
 
     /// <summary>Query string of the flight list. Text filters match any part of the value.</summary>
     public sealed record FlightListRequest(
-        int Page = 1,
-        int PageSize = 50,
-        string? CustomerId = null,
-        string? Tail = null,
-        string? Mission = null,
-        FlightStatus? Status = null,
-        DateTime? StartFrom = null,
-        DateTime? StartTo = null,
-        bool? HasProblems = null,
-        FlightSort Sort = FlightSort.ImportedNewest);
+        [property: FromQuery(Name = "page")] int Page = 1,
+        [property: FromQuery(Name = "pageSize")] int PageSize = 50,
+        [property: FromQuery(Name = "customerId")] string? CustomerId = null,
+        [property: FromQuery(Name = "tail")] string? Tail = null,
+        [property: FromQuery(Name = "mission")] string? Mission = null,
+        [property: FromQuery(Name = "status")] FlightStatus? Status = null,
+        [property: FromQuery(Name = "startFrom")] DateTime? StartFrom = null,
+        [property: FromQuery(Name = "startTo")] DateTime? StartTo = null,
+        [property: FromQuery(Name = "hasProblems")] bool? HasProblems = null,
+        [property: FromQuery(Name = "sort")] FlightSort Sort = FlightSort.ImportedNewest);
 
     private static async Task<Results<Ok<FlightPageDto>, ValidationProblem>> List(
         [AsParameters] FlightListRequest q, FlightRepository flights, CancellationToken ct)
@@ -51,6 +63,53 @@ public static class FlightEndpoints
             q.Status, Utc(q.StartFrom), Utc(q.StartTo), q.HasProblems, q.Sort);
         var result = await flights.ListAsync(query, ct);
         return TypedResults.Ok(new FlightPageDto(result.Items.Select(FlightSummaryDto.From).ToList(), result.Page, result.PageSize, result.Total));
+    }
+
+    public const int MaxDeleteBatch = 1_000;
+    public const string DeleteAllConfirmation = "DELETE";
+
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> Delete(
+        Guid id, FlightRepository flights, IHubContext<ImportHub, IImportClient> hub, CancellationToken ct)
+    {
+        var flight = await flights.GetAsync(id, ct);
+        if (flight is null)
+            return TypedResults.NotFound();
+        if (flight.Status == FlightStatus.Importing)
+            return TypedResults.Problem("The flight is still being imported.", statusCode: StatusCodes.Status409Conflict);
+
+        await flights.DeleteAsync([id], ct);
+        await hub.Clients.All.FlightsChanged();
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<Results<Ok<DeleteResultDto>, ValidationProblem, ProblemHttpResult>> DeleteMany(
+        DeleteFlightsRequest request, FlightRepository flights, IHubContext<ImportHub, IImportClient> hub, CancellationToken ct)
+    {
+        var ids = (request.Ids ?? []).Distinct().ToArray();
+        if (ids.Length is 0 or > MaxDeleteBatch)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["ids"] = [$"Give between 1 and {MaxDeleteBatch} flight ids."] });
+
+        foreach (var id in ids)
+        {
+            if ((await flights.GetAsync(id, ct))?.Status == FlightStatus.Importing)
+                return TypedResults.Problem($"Flight {id} is still being imported.", statusCode: StatusCodes.Status409Conflict);
+        }
+        var deleted = await flights.DeleteAsync(ids, ct);
+        await hub.Clients.All.FlightsChanged();
+        return TypedResults.Ok(new DeleteResultDto(deleted));
+    }
+
+    private static async Task<Results<Ok<DeleteResultDto>, ValidationProblem, ProblemHttpResult>> DeleteAll(
+        FlightRepository flights, ImportJobStore jobs, IHubContext<ImportHub, IImportClient> hub, CancellationToken ct, string? confirm = null)
+    {
+        if (confirm != DeleteAllConfirmation)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["confirm"] = [$"Pass confirm={DeleteAllConfirmation} to delete every flight."] });
+        if (jobs.HasActiveJobs())
+            return TypedResults.Problem("Imports are running. Wait for them to finish or cancel them first.", statusCode: StatusCodes.Status409Conflict);
+
+        var deleted = await flights.DeleteAllAsync(ct);
+        await hub.Clients.All.FlightsChanged();
+        return TypedResults.Ok(new DeleteResultDto(deleted));
     }
 
     private static async Task<Ok<string[]>> Customers(FlightRepository flights, CancellationToken ct) =>

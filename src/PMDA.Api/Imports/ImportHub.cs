@@ -7,6 +7,9 @@ namespace PMDA.Api.Imports;
 public interface IImportClient
 {
     Task ImportUpdated(ImportJobDto job);
+
+    /// <summary>Flights were deleted; clients refresh their lists.</summary>
+    Task FlightsChanged();
 }
 
 /// <summary>Push-only hub: clients listen for <see cref="IImportClient.ImportUpdated"/>.</summary>

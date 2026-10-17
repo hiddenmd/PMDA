@@ -50,7 +50,8 @@ export interface paths {
         get: operations["ListFlights"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete every flight. Requires confirm=DELETE; refused while imports run. */
+        delete: operations["DeleteAllFlights"];
         options?: never;
         head?: never;
         patch?: never;
@@ -83,6 +84,24 @@ export interface paths {
         get: operations["GetFlight"];
         put?: never;
         post?: never;
+        /** Delete one flight and its data. */
+        delete: operations["DeleteFlight"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete the given flights and their data. */
+        post: operations["DeleteFlights"];
         delete?: never;
         options?: never;
         head?: never;
@@ -242,6 +261,13 @@ export interface components {
             kind: number;
             /** Format: int32 */
             count: number;
+        };
+        DeleteFlightsRequest: {
+            ids: string[];
+        };
+        DeleteResultDto: {
+            /** Format: int32 */
+            deleted: number;
         };
         DiagnosticDto: {
             /** Format: int64 */
@@ -644,16 +670,16 @@ export interface operations {
     ListFlights: {
         parameters: {
             query?: {
-                Page?: number;
-                PageSize?: number;
-                CustomerId?: string;
-                Tail?: string;
-                Mission?: string;
-                Status?: "Importing" | "Completed" | "Failed" | null;
-                StartFrom?: string;
-                StartTo?: string;
-                HasProblems?: boolean;
-                Sort?: "ImportedNewest" | "StartNewest" | "StartOldest" | "Tail" | "MostEvents";
+                page?: number;
+                pageSize?: number;
+                customerId?: string;
+                tail?: string;
+                mission?: string;
+                status?: "Importing" | "Completed" | "Failed" | null;
+                startFrom?: string;
+                startTo?: string;
+                hasProblems?: boolean;
+                sort?: "ImportedNewest" | "StartNewest" | "StartOldest" | "Tail" | "MostEvents";
             };
             header?: never;
             path?: never;
@@ -677,6 +703,46 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteAllFlights: {
+        parameters: {
+            query?: {
+                confirm?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteResultDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -723,6 +789,86 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteFlight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteFlights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteFlightsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteResultDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

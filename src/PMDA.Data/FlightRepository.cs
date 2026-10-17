@@ -65,6 +65,44 @@ public sealed class FlightRepository(string connectionString)
         return new PagedResult<FlightRecord>(items, query.Page, query.PageSize, total);
     }
 
+    /// <summary>Deletes the given flights with their events and diagnostics, in one transaction.</summary>
+    /// <returns>The number of flights deleted (unknown ids are ignored).</returns>
+    public async Task<int> DeleteAsync(IReadOnlyCollection<Guid> flightIds, CancellationToken ct)
+    {
+        if (flightIds.Count == 0)
+            return 0;
+
+        await using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(ct);
+        var ids = new { Ids = flightIds.ToArray() };
+        await conn.ExecuteAsync(new CommandDefinition("DELETE dbo.FlightEvent WHERE FlightId IN @Ids;", ids, tx, commandTimeout: 0, cancellationToken: ct));
+        await conn.ExecuteAsync(new CommandDefinition("DELETE dbo.ImportDiagnostic WHERE FlightId IN @Ids;", ids, tx, cancellationToken: ct));
+        var deleted = await conn.ExecuteAsync(new CommandDefinition("DELETE dbo.Flight WHERE FlightId IN @Ids;", ids, tx, cancellationToken: ct));
+        await tx.CommitAsync(ct);
+        return deleted;
+    }
+
+    /// <summary>
+    /// Deletes every flight. TRUNCATE makes this instant even for hundreds of millions of events,
+    /// where a row-by-row DELETE on the columnstore would take minutes.
+    /// </summary>
+    /// <returns>The number of flights deleted.</returns>
+    public async Task<int> DeleteAllAsync(CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(ct);
+        var count = await conn.ExecuteScalarAsync<int>(new CommandDefinition("SELECT COUNT(*) FROM dbo.Flight WITH (TABLOCKX);", transaction: tx, cancellationToken: ct));
+        await conn.ExecuteAsync(new CommandDefinition("""
+            TRUNCATE TABLE dbo.FlightEvent;
+            TRUNCATE TABLE dbo.ImportDiagnostic;
+            DELETE dbo.Flight;
+            """, transaction: tx, commandTimeout: 0, cancellationToken: ct));
+        await tx.CommitAsync(ct);
+        return count;
+    }
+
     /// <summary>Customers that have flights, for filter choices.</summary>
     public async Task<IReadOnlyList<string>> CustomersAsync(CancellationToken ct)
     {
