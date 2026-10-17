@@ -28,23 +28,130 @@
   color: var(--color-foreground);
   font-weight: var(--fw-medium);
 }
-.import-active {
-  display: grid;
-  gap: var(--space-md);
+.import-pick {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-sm);
 }
-.import-active__row {
+.import-pick .dropzone {
+  flex: 1;
+  min-width: 0;
+}
+.import-pick > .btn {
+  height: auto;
+}
+.dropzone--compact {
+  padding-block: var(--space-sm);
+}
+.import-batch {
+  display: grid;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+.import-batch__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: var(--fs-xs);
+  color: var(--color-muted-foreground);
+}
+.import-batch__summary {
+  flex: 1;
+  min-width: 0;
+}
+.import-list {
+  display: grid;
+  max-height: 40vh;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+.import-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--fs-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+.import-row:last-child {
+  border-bottom: 0;
+}
+.import-row > svg {
+  margin-top: 3px;
+  color: var(--color-muted-foreground);
+}
+.import-row--completed > svg {
+  color: var(--color-success);
+}
+.import-row--failed > svg,
+.import-row--failed .import-row__status {
+  color: var(--color-destructive);
+}
+.import-row--duplicate > svg {
+  color: var(--color-accent);
+}
+.import-row--uploading > svg,
+.import-row--processing > svg {
+  color: var(--color-link);
+}
+.import-row__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.import-row__line {
+  display: flex;
   gap: var(--space-md);
   min-width: 0;
-  font-size: var(--fs-sm);
 }
-.import-active__name {
+.import-row__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: var(--fw-medium);
+}
+.import-row__size {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-muted-foreground);
+}
+.import-row__status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  color: var(--color-muted-foreground);
+}
+.import-row__track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-muted);
+  overflow: hidden;
+}
+.import-row__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
 }
 
 /* ---------- Flights ---------- */

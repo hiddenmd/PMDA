@@ -30,7 +30,11 @@ public interface IEventSink
 {
     Task<BeginFlightResult> BeginFlightAsync(FlightImportInfo info, CancellationToken ct);
 
-    /// <summary>The sink must not keep a reference to <paramref name="events"/> after returning.</summary>
+    /// <summary>
+    /// May be called again before an earlier call has finished (the importer writes several batches at
+    /// once). <paramref name="events"/> is valid until the returned task completes; the sink must not
+    /// keep a reference to it after that.
+    /// </summary>
     Task WriteBatchAsync(Guid flightId, ReadOnlyMemory<FlightEvent> events, CancellationToken ct);
 
     Task CompleteFlightAsync(FlightImportSummary summary, CancellationToken ct);

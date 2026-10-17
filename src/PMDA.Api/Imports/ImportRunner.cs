@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using PMDA.Data;
 using PMDA.Import;
 
@@ -8,8 +9,12 @@ public sealed class ImportRunner(
     FlightImporter importer,
     FlightRepository flights,
     SqlConnectionString connection,
+    IOptions<ImportsOptions> options,
     ILogger<ImportRunner> logger)
 {
+    // One budget of bulk-write streams for all imports; a lone import may use all of it.
+    private readonly SemaphoreSlim _writeGate = new(options.Value.SqlWriteStreams);
+
     public async Task RunAsync(ImportJob job, CancellationToken stopping)
     {
         try
@@ -48,8 +53,9 @@ public sealed class ImportRunner(
         await using (var file = new FileStream(job.TempPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16,
                          FileOptions.Asynchronous | FileOptions.SequentialScan))
         {
-            var sink = new SqlEventSink(connection.Value);
-            result = await importer.ImportAsync(file, job.FileName, sink, progress: new InlineProgress(job.ReportProgress), ct: ct);
+            var sink = new SqlEventSink(connection.Value, _writeGate);
+            var importOptions = new ImportOptions { MaxParallelWrites = options.Value.SqlWriteStreams };
+            result = await importer.ImportAsync(file, job.FileName, sink, importOptions, new InlineProgress(job.ReportProgress), ct);
         }
 
         // A header means the sink created the flight row, so diagnostics have a flight to belong to.

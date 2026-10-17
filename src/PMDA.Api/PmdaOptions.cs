@@ -18,6 +18,14 @@ public sealed class ImportsOptions
     [Range(1, 64)]
     public int MaxConcurrentImports { get; set; } = 2;
 
+    /// <summary>
+    /// Bulk writes to SQL Server at once, shared by all running imports. Columnstore compression on the server
+    /// is most of an import's cost and uses one core per write, so this is the main speed setting. Measured on
+    /// a 32-core server: 1 → 0.22, 4 → 0.83, 8 → 1.23, 16 → 0.82 million events/s.
+    /// </summary>
+    [Range(1, 64)]
+    public int SqlWriteStreams { get; set; } = 8;
+
     /// <summary>Uploads waiting for a worker; beyond this the API answers 503.</summary>
     [Range(1, 10_000)]
     public int QueueCapacity { get; set; } = 64;

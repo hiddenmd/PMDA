@@ -1,152 +1,231 @@
-import { AlertCircle, CheckCircle2, Copy, Loader2, RotateCcw, UploadCloud, XCircle } from 'lucide-react'
-import { useState, type DragEvent, type ReactNode } from 'react'
-import { ProgressBar } from '../../components/ProgressBar'
-import { useImport, type ImportViewModel } from '../../hooks/useImport'
-import { formatBytes, formatNumber } from '../../lib/format'
+import { useSelector } from '@xstate/react'
+import { AlertCircle, CheckCircle2, Clock, Copy, FolderOpen, Loader2, RotateCcw, UploadCloud, X, XCircle } from 'lucide-react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
+import { useImportBatch, type ImportBatch } from '../../hooks/useImportBatch'
+import { formatBytes, formatCompact, formatNumber } from '../../lib/format'
+import { isFinished, type BatchItem, type BatchSummary, type FileImportRef, type FileStatus } from '../../machines/importBatchMachine'
+import { importProgress } from '../../machines/importMachine'
+import { droppedFiles, pickedFiles } from './droppedFiles'
 
 interface ImportPanelProps {
   onOpenFlight: (flightId: string) => void
 }
 
 export function ImportPanel({ onOpenFlight }: ImportPanelProps) {
-  const vm = useImport()
-  return <ImportPanelView {...vm} onOpenFlight={onOpenFlight} />
+  const batch = useImportBatch()
+  return <ImportPanelView batch={batch} onOpenFlight={onOpenFlight} />
 }
 
-/** Renders an import view model; no state of its own beyond drag highlighting. */
-export function ImportPanelView(vm: ImportViewModel & ImportPanelProps) {
-  const { status, file, job, error } = vm
-  const flightId = job?.flightId
-  const canStart = status === 'idle' || status === 'completed' || status === 'duplicate' || status === 'failed' || status === 'cancelled'
+/** Drop zone plus one row per file of the batch. */
+export function ImportPanelView({ batch, onOpenFlight }: { batch: ImportBatch } & ImportPanelProps) {
+  const { items, summary } = batch
+  const children = useSelector(batch.actor, (s) => s.children as Record<string, FileImportRef | undefined>)
+  const active = summary.waiting + summary.uploading + summary.importing
+  const finished = summary.total - active
 
   return (
-    <section className="import" aria-label="Import flight">
+    <section className="import" aria-label="Import flights">
+      <FilePicker onFiles={batch.add} compact={items.length > 0} />
 
-      {canStart && <FilePicker onFile={vm.start} />}
-
-      {status === 'uploading' && (
-        <Active title={`Uploading ${file?.name ?? ''}`} onCancel={vm.cancel}>
-          <ProgressBar value={vm.uploadPercent} label="Upload" />
-        </Active>
-      )}
-
-      {status === 'queued' && <Active title={`${job?.fileName} is waiting for a worker`} onCancel={vm.cancel} />}
-
-      {status === 'processing' && job && (
-        <Active title={`Importing ${job.fileName}`} onCancel={vm.cancel}>
-          <ProgressBar value={vm.processPercent} label="Parsing" />
-          <p className="muted mono" style={{ fontSize: 12 }}>
-            {formatNumber(job.eventCount)} events · {formatNumber(job.errorCount)} problems · {formatBytes(job.bytesRead)} of{' '}
-            {formatBytes(job.totalBytes)}
-          </p>
-        </Active>
-      )}
-
-      {status === 'cancelling' && (
-        <Notice kind="info" icon={<Loader2 size={16} aria-hidden />}>
-          Cancelling…
-        </Notice>
-      )}
-
-      {status === 'completed' && job && (
-        <Notice kind="ok" icon={<CheckCircle2 size={16} aria-hidden />}>
-          <p>
-            <strong>{job.fileName}</strong> imported: {formatNumber(job.eventCount)} events, {formatNumber(job.errorCount)} problems.
-          </p>
-          {flightId && (
-            <button type="button" className="btn btn--primary btn--compact" onClick={() => vm.onOpenFlight(flightId)}>
-              Open flight
-            </button>
-          )}
-        </Notice>
-      )}
-
-      {status === 'duplicate' && (
-        <Notice kind="warn" icon={<Copy size={16} aria-hidden />}>
-          {job?.fileName} was already imported.
-        </Notice>
-      )}
-
-      {status === 'cancelled' && (
-        <Notice kind="info" icon={<XCircle size={16} aria-hidden />}>
-          Import cancelled.
-        </Notice>
-      )}
-
-      {status === 'failed' && (
-        <Notice kind="error" icon={<AlertCircle size={16} aria-hidden />} alert>
-          <p>{error ?? 'The import failed.'}</p>
-          {file && (
-            <button type="button" className="btn btn--secondary btn--compact" onClick={vm.retry}>
-              <RotateCcw size={14} aria-hidden />
-              Retry {file.name}
-            </button>
-          )}
-        </Notice>
+      {items.length > 0 && (
+        <div className="import-batch">
+          <div className="import-batch__head">
+            <span className="import-batch__summary" role="status">
+              {describe(summary)}
+            </span>
+            {active > 0 && (
+              <button type="button" className="btn btn--ghost btn--compact" onClick={batch.cancelAll}>
+                Cancel all
+              </button>
+            )}
+            {finished > 0 && (
+              <button type="button" className="btn btn--ghost btn--compact" onClick={batch.clearFinished}>
+                Clear finished
+              </button>
+            )}
+          </div>
+          <ul className="import-list" aria-label="Files">
+            {items.map((item) => {
+              const child = children[item.id]
+              return child ? <ImportRow key={item.id} item={item} child={child} batch={batch} onOpenFlight={onOpenFlight} /> : null
+            })}
+          </ul>
+        </div>
       )}
     </section>
   )
 }
 
-function Notice({ kind, icon, alert, children }: { kind: 'ok' | 'warn' | 'error' | 'info'; icon: ReactNode; alert?: boolean; children: ReactNode }) {
-  return (
-    <div className={`notice notice--${kind}`} role={alert ? 'alert' : undefined}>
-      {icon}
-      <div className="notice__body">{children}</div>
-    </div>
-  )
+function describe(s: BatchSummary): string {
+  const parts = [
+    s.completed > 0 && `${s.completed} imported`,
+    s.importing > 0 && `${s.importing} importing`,
+    s.uploading > 0 && `${s.uploading} uploading`,
+    s.waiting > 0 && `${s.waiting} waiting`,
+    s.duplicate > 0 && `${s.duplicate} already imported`,
+    s.failed > 0 && `${s.failed} failed`,
+    s.cancelled > 0 && `${s.cancelled} cancelled`,
+  ].filter(Boolean)
+  return `${s.total} ${s.total === 1 ? 'file' : 'files'}: ${parts.join(' · ')}`
 }
 
-function Active({ title, onCancel, children }: { title: string; onCancel: () => void; children?: ReactNode }) {
+const ICONS: Record<FileStatus, typeof Clock> = {
+  waiting: Clock,
+  starting: Clock,
+  uploading: Loader2,
+  queued: Clock,
+  processing: Loader2,
+  cancelling: Loader2,
+  completed: CheckCircle2,
+  duplicate: Copy,
+  failed: AlertCircle,
+  cancelled: XCircle,
+}
+
+function ImportRow({ item, child, batch, onOpenFlight }: { item: BatchItem; child: FileImportRef; batch: ImportBatch } & ImportPanelProps) {
+  // Progress ticks re-render only this row; the status comes from the batch.
+  const context = useSelector(child, (s) => s.context)
+  const { status } = item
+  const { job, error } = context
+  const { uploadPercent, processPercent } = importProgress(context)
+  const Icon = ICONS[status]
+  const busy = status === 'uploading' || status === 'processing' || status === 'cancelling'
+
+  let text: string
+  let percent: number | null = null
+  switch (status) {
+    case 'waiting':
+    case 'starting':
+      text = 'Waiting to upload'
+      break
+    case 'uploading':
+      text = `Uploading ${uploadPercent}%`
+      percent = uploadPercent
+      break
+    case 'queued':
+      text = 'Queued on the server'
+      break
+    case 'processing':
+      text = `Importing ${processPercent}% · ${formatCompact(job?.eventCount ?? 0)} events`
+      percent = processPercent
+      break
+    case 'cancelling':
+      text = 'Cancelling…'
+      break
+    case 'completed':
+      text = `Imported · ${formatNumber(job?.eventCount ?? 0)} events${job?.errorCount ? ` · ${formatNumber(job.errorCount)} problems` : ''}`
+      break
+    case 'duplicate':
+      text = 'Already imported'
+      break
+    case 'failed':
+      text = error ?? 'The import failed.'
+      break
+    case 'cancelled':
+      text = 'Cancelled'
+      break
+  }
+
   return (
-    <div className="import-active">
-      <div className="import-active__row">
-        <span className="import-active__name" title={title}>
-          {title}
-        </span>
-        <button type="button" className="btn btn--secondary btn--compact" onClick={onCancel}>
-          Cancel
-        </button>
+    <li className={`import-row import-row--${status}`}>
+      <Icon size={14} aria-hidden className={busy ? 'spin' : undefined} />
+      <div className="import-row__main">
+        <div className="import-row__line">
+          <span className="import-row__name" title={item.file.webkitRelativePath || item.file.name}>
+            {item.file.name}
+          </span>
+          <span className="import-row__size">{formatBytes(item.file.size)}</span>
+        </div>
+        <div className="import-row__status" title={text}>
+          {text}
+        </div>
+        {percent !== null && (
+          <div className="import-row__track" role="progressbar" aria-label={`${item.file.name} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+            <div className="progress__fill" style={{ width: `${percent}%` }} />
+          </div>
+        )}
       </div>
-      {children}
-    </div>
+      <div className="import-row__actions">
+        {status === 'completed' && job?.flightId && (
+          <button type="button" className="btn btn--secondary btn--compact" onClick={() => onOpenFlight(job.flightId!)}>
+            Open
+          </button>
+        )}
+        {status === 'failed' && (
+          <button type="button" className="btn btn--ghost btn--icon btn--compact" aria-label={`Retry ${item.file.name}`} title="Retry" onClick={() => batch.retry(item.id)}>
+            <RotateCcw size={14} aria-hidden />
+          </button>
+        )}
+        {isFinished(status) ? (
+          <button type="button" className="btn btn--ghost btn--icon btn--compact" aria-label={`Remove ${item.file.name} from the list`} title="Remove from list" onClick={() => batch.remove(item.id)}>
+            <X size={14} aria-hidden />
+          </button>
+        ) : (
+          status !== 'cancelling' && (
+            <button type="button" className="btn btn--ghost btn--icon btn--compact" aria-label={`Cancel ${item.file.name}`} title="Cancel" onClick={() => batch.cancel(item.id)}>
+              <XCircle size={14} aria-hidden />
+            </button>
+          )
+        )}
+      </div>
+    </li>
   )
 }
 
-function FilePicker({ onFile }: { onFile: (file: File) => void }) {
+function FilePicker({ onFiles, compact }: { onFiles: (files: File[]) => void; compact: boolean }) {
   const [dragging, setDragging] = useState(false)
+  const folderRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    // Not in React's input props: lets the picker choose a folder and import every file in it.
+    folderRef.current?.setAttribute('webkitdirectory', '')
+  }, [])
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault()
     setDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) onFile(file)
+    void droppedFiles(e.dataTransfer).then(onFiles)
   }
 
   return (
-    <label
-      className={`dropzone${dragging ? ' dropzone--active' : ''}`}
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-    >
-      <UploadCloud size={20} aria-hidden />
-      <span className="dropzone__text">
-        Drop a recording or <strong>browse</strong>
-      </span>
-      <input
-        type="file"
-        className="visually-hidden"
-        aria-label="Flight recording"
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) onFile(file)
-          e.target.value = '' // allow choosing the same file again
+    <div className="import-pick">
+      <label
+        className={`dropzone${dragging ? ' dropzone--active' : ''}${compact ? ' dropzone--compact' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragging(true)
         }}
-      />
-    </label>
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+      >
+        <UploadCloud size={20} aria-hidden />
+        <span className="dropzone__text">
+          Drop recordings or folders, or <strong>browse</strong>
+        </span>
+        <input
+          type="file"
+          multiple
+          className="visually-hidden"
+          aria-label="Flight recordings"
+          onChange={(e) => {
+            onFiles(pickedFiles(e.target.files))
+            e.target.value = '' // allow choosing the same files again
+          }}
+        />
+      </label>
+      <label className="btn btn--ghost btn--icon" title="Import a whole folder">
+        <FolderOpen size={16} aria-hidden />
+        <input
+          ref={folderRef}
+          type="file"
+          className="visually-hidden"
+          aria-label="Folder of flight recordings"
+          onChange={(e) => {
+            onFiles(pickedFiles(e.target.files))
+            e.target.value = ''
+          }}
+        />
+      </label>
+    </div>
   )
 }

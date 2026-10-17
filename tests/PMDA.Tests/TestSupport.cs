@@ -61,10 +61,13 @@ internal sealed class MemorySink : IEventSink
 
     public Task WriteBatchAsync(Guid flightId, ReadOnlyMemory<FlightEvent> events, CancellationToken ct)
     {
-        if (FailOnBatch?.Invoke(BatchSizes.Count) is { } ex)
-            throw ex;
-        BatchSizes.Add(events.Length);
-        Events.AddRange(events.ToArray());
+        lock (Events) // the importer may write batches concurrently
+        {
+            if (FailOnBatch?.Invoke(BatchSizes.Count) is { } ex)
+                throw ex;
+            BatchSizes.Add(events.Length);
+            Events.AddRange(events.ToArray());
+        }
         return Task.CompletedTask;
     }
 

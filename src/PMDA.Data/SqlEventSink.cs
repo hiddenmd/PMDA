@@ -6,14 +6,15 @@ using PMDA.Core.Import;
 namespace PMDA.Data;
 
 /// <summary>
-/// Writes flights to SQL Server. Events go in with SqlBulkCopy; use one sink per import.
+/// Writes flights to SQL Server. Events go in with SqlBulkCopy, streamed from the batch with no
+/// intermediate table. Batches may be written concurrently, each on its own connection; pass a shared
+/// <paramref name="writeGate"/> to cap concurrent bulk writes across all imports (past about 8 on a
+/// 32-core server they slow each other down).
 /// </summary>
-public sealed class SqlEventSink(string connectionString) : IEventSink
+public sealed class SqlEventSink(string connectionString, SemaphoreSlim? writeGate = null) : IEventSink
 {
     private const byte StatusImporting = 0, StatusCompleted = 1, StatusFailed = 2;
     private const int UniqueIndexViolation = 2601;
-
-    private readonly DataTable _table = CreateEventTable();
 
     public async Task<BeginFlightResult> BeginFlightAsync(FlightImportInfo info, CancellationToken ct)
     {
@@ -45,16 +46,24 @@ public sealed class SqlEventSink(string connectionString) : IEventSink
 
     public async Task WriteBatchAsync(Guid flightId, ReadOnlyMemory<FlightEvent> events, CancellationToken ct)
     {
-        _table.Clear();
-        foreach (var e in events.Span)
+        if (writeGate is null)
         {
-            _table.Rows.Add(
-                e.FlightId, e.Seq, e.TimeUtc, (byte)e.EventType,
-                N(e.SubType), N(e.EmitterId), N(e.FrequencyMHz), N(e.PriUs), N(e.PulseWidthUs),
-                N(e.BearingDeg), N(e.AmplitudeDb), N(e.Lat), N(e.Lon), N(e.AltM), N(e.Count),
-                (object?)e.Extra ?? DBNull.Value);
+            await BulkWriteAsync(events, ct);
+            return;
         }
+        await writeGate.WaitAsync(ct);
+        try
+        {
+            await BulkWriteAsync(events, ct);
+        }
+        finally
+        {
+            writeGate.Release();
+        }
+    }
 
+    private async Task BulkWriteAsync(ReadOnlyMemory<FlightEvent> events, CancellationToken ct)
+    {
         await using var conn = await OpenAsync(ct);
         using var bulk = new SqlBulkCopy(conn)
         {
@@ -62,9 +71,10 @@ public sealed class SqlEventSink(string connectionString) : IEventSink
             BulkCopyTimeout = 0,
             BatchSize = 0, // whole batch in one go, so columnstore can compress it directly
         };
-        foreach (DataColumn c in _table.Columns)
-            bulk.ColumnMappings.Add(c.ColumnName, c.ColumnName);
-        await bulk.WriteToServerAsync(_table, ct);
+        foreach (var (name, _) in FlightEventReader.Columns)
+            bulk.ColumnMappings.Add(name, name);
+        await using var reader = new FlightEventReader(events);
+        await bulk.WriteToServerAsync(reader, ct);
     }
 
     public async Task CompleteFlightAsync(FlightImportSummary s, CancellationToken ct)
@@ -104,29 +114,5 @@ public sealed class SqlEventSink(string connectionString) : IEventSink
         var conn = new SqlConnection(connectionString);
         await conn.OpenAsync(ct);
         return conn;
-    }
-
-    private static object N<T>(T? value) where T : struct => value.HasValue ? value.Value : DBNull.Value;
-
-    private static DataTable CreateEventTable()
-    {
-        var t = new DataTable();
-        t.Columns.Add("FlightId", typeof(Guid));
-        t.Columns.Add("Seq", typeof(long));
-        t.Columns.Add("TimeUtc", typeof(DateTime));
-        t.Columns.Add("EventType", typeof(byte));
-        t.Columns.Add("SubType", typeof(short));
-        t.Columns.Add("EmitterId", typeof(int));
-        t.Columns.Add("FrequencyMHz", typeof(float));
-        t.Columns.Add("PriUs", typeof(float));
-        t.Columns.Add("PulseWidthUs", typeof(float));
-        t.Columns.Add("BearingDeg", typeof(float));
-        t.Columns.Add("AmplitudeDb", typeof(float));
-        t.Columns.Add("Lat", typeof(double));
-        t.Columns.Add("Lon", typeof(double));
-        t.Columns.Add("AltM", typeof(float));
-        t.Columns.Add("Count", typeof(int));
-        t.Columns.Add("Extra", typeof(byte[]));
-        return t;
     }
 }

@@ -152,3 +152,86 @@ public class FlightImporterTests
         Assert.Contains("PMDA.Data.Schema.001_init.sql", names);
     }
 }
+
+public class ParallelWriteTests
+{
+    private static MemoryStream File(int events) => SampleFile(w =>
+    {
+        for (var i = 0; i < events; i++)
+            w.WriteCountermeasure(TimeSpan.FromMilliseconds(i), 1, 1);
+    });
+
+    [Fact]
+    public async Task Writes_overlap_up_to_the_limit_and_every_event_arrives_once()
+    {
+        using var s = File(100);
+        var sink = new SlowSink(TimeSpan.FromMilliseconds(30));
+
+        var result = await Importer().ImportAsync(s, "f", sink, new ImportOptions { BatchSize = 10, MaxParallelWrites = 3 });
+
+        Assert.Equal(ImportStatus.Completed, result.Status);
+        Assert.Equal(3, sink.MaxInFlight);
+        Assert.Equal(Enumerable.Range(0, 100).Select(i => (long)i), sink.Seqs.Order());
+        Assert.True(sink.CompletedAfterAllWrites, "the flight was completed while a batch was still being written");
+    }
+
+    [Fact]
+    public async Task A_failed_write_stops_the_others_before_the_flight_is_rolled_back()
+    {
+        using var s = File(100);
+        var sink = new SlowSink(TimeSpan.FromMilliseconds(30)) { FailBatch = 2 };
+
+        var result = await Importer().ImportAsync(s, "f", sink, new ImportOptions { BatchSize = 10, MaxParallelWrites = 4 });
+
+        Assert.Equal(ImportStatus.Failed, result.Status);
+        Assert.Contains("disk full", result.FailureReason);
+        Assert.True(sink.AbortedWithNoWriteRunning, "the flight was rolled back while a batch was still being written");
+    }
+
+    /// <summary>Takes a while per batch, like SQL Server, and records how many batches overlapped.</summary>
+    private sealed class SlowSink(TimeSpan delay) : PMDA.Core.Import.IEventSink
+    {
+        private int _inFlight, _batches;
+        public int MaxInFlight;
+        public int? FailBatch { get; init; }
+        public System.Collections.Concurrent.ConcurrentBag<long> Seqs { get; } = new();
+        public bool CompletedAfterAllWrites { get; private set; }
+        public bool AbortedWithNoWriteRunning { get; private set; }
+
+        public Task<PMDA.Core.Import.BeginFlightResult> BeginFlightAsync(PMDA.Core.Import.FlightImportInfo info, CancellationToken ct) =>
+            Task.FromResult(PMDA.Core.Import.BeginFlightResult.Started);
+
+        public async Task WriteBatchAsync(Guid flightId, ReadOnlyMemory<FlightEvent> events, CancellationToken ct)
+        {
+            var n = Interlocked.Increment(ref _inFlight);
+            var batch = Interlocked.Increment(ref _batches);
+            lock (this)
+                MaxInFlight = Math.Max(MaxInFlight, n);
+            try
+            {
+                var copy = events.ToArray(); // the buffer is only ours until the task completes
+                if (batch == FailBatch)
+                    throw new IOException("disk full");
+                await Task.Delay(delay, ct);
+                foreach (var e in copy)
+                    Seqs.Add(e.Seq);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _inFlight);
+            }
+        }
+
+        public Task CompleteFlightAsync(PMDA.Core.Import.FlightImportSummary summary, CancellationToken ct)
+        {
+            CompletedAfterAllWrites = Volatile.Read(ref _inFlight) == 0;
+            return Task.CompletedTask;
+        }
+
+        public Task AbortFlightAsync(Guid flightId, string reason, CancellationToken ct)
+        {
+            AbortedWithNoWriteRunning = Volatile.Read(ref _inFlight) == 0;
+            return Task.CompletedTask;
+        }
+    }
+}

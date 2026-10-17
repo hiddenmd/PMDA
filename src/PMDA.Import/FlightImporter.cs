@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using PMDA.Core.Events;
 using PMDA.Core.Import;
@@ -15,6 +16,12 @@ public sealed record ImportOptions
     /// rowgroup; smaller batches land in the slower delta store first.
     /// </summary>
     public int BatchSize { get; init; } = 102_400;
+    /// <summary>
+    /// Batches written at the same time, each on its own connection, while parsing carries on. SQL
+    /// Server compresses each batch into a columnstore rowgroup on one core, and that compression is
+    /// most of an import's cost, so parallel writes scale it across cores. 1 writes one at a time.
+    /// </summary>
+    public int MaxParallelWrites { get; init; } = 4;
     /// <summary>Hash the file first so the sink can reject re-imports. Costs one extra read.</summary>
     public bool ComputeFileHash { get; init; } = true;
     /// <summary>Diagnostics kept in the result; the counts include all of them.</summary>
@@ -52,6 +59,8 @@ public sealed class FlightImporter(AdapterDetector adapters, DecoderRegistry dec
         options ??= new ImportOptions();
         if (options.BatchSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(options), "BatchSize must be positive.");
+        if (options.MaxParallelWrites <= 0)
+            throw new ArgumentOutOfRangeException(nameof(options), "MaxParallelWrites must be positive.");
 
         var flightId = Guid.NewGuid();
         var diagnostics = new DiagnosticsCollector(options.MaxReportedDiagnostics);
@@ -85,7 +94,8 @@ public sealed class FlightImporter(AdapterDetector adapters, DecoderRegistry dec
             return new ImportResult(ImportStatus.Duplicate, flightId, header, 0, 0, 0, [], "This file was already imported.");
 
         var table = decoders.For(adapter.CustomerId);
-        var batch = new FlightEvent[options.BatchSize];
+        await using var writer = new BatchWriter(sink, flightId, options.BatchSize, options.MaxParallelWrites, ct);
+        var batch = writer.Rent();
         var count = 0;
         long seq = 0, unknown = 0;
         DateTime? first = null, last = null;
@@ -116,13 +126,15 @@ public sealed class FlightImporter(AdapterDetector adapters, DecoderRegistry dec
 
                 if (count == batch.Length)
                 {
-                    await sink.WriteBatchAsync(flightId, batch.AsMemory(0, count), ct);
+                    await writer.WriteAsync(batch, count);
+                    batch = writer.Rent();
                     count = 0;
                     progress?.Report(new ImportProgress(stream.CanSeek ? stream.Position : -1, totalBytes, seq, diagnostics.Count));
                 }
             }
             if (count > 0)
-                await sink.WriteBatchAsync(flightId, batch.AsMemory(0, count), ct);
+                await writer.WriteAsync(batch, count);
+            await writer.DrainAsync();
 
             var errors = diagnostics.Count;
             await sink.CompleteFlightAsync(new FlightImportSummary(flightId, seq, errors, first, last), ct);
@@ -131,6 +143,8 @@ public sealed class FlightImporter(AdapterDetector adapters, DecoderRegistry dec
         }
         catch (Exception ex)
         {
+            // Nothing may still be writing when the flight's events are removed.
+            await writer.CancelAsync();
             var reason = ex is OperationCanceledException ? "Import cancelled." : $"Import failed: {ex.Message}";
             // Clean up even when the caller's token is cancelled.
             await sink.AbortFlightAsync(flightId, reason, CancellationToken.None);
@@ -142,6 +156,68 @@ public sealed class FlightImporter(AdapterDetector adapters, DecoderRegistry dec
 
     private static ImportResult Failed(Guid flightId, FlightHeader? header, DiagnosticsCollector d, string reason) =>
         new(ImportStatus.Failed, flightId, header, 0, d.Count, 0, d.Items, reason);
+
+    /// <summary>
+    /// Writes full batches with at most <c>maxParallel</c> in flight, recycling their buffers. A write
+    /// failure surfaces from the next <see cref="WriteAsync"/> or <see cref="DrainAsync"/>.
+    /// </summary>
+    private sealed class BatchWriter(IEventSink sink, Guid flightId, int batchSize, int maxParallel, CancellationToken ct) : IAsyncDisposable
+    {
+        private readonly CancellationTokenSource _cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        private readonly List<Task> _inFlight = new();
+        private readonly ConcurrentBag<FlightEvent[]> _free = new();
+
+        public FlightEvent[] Rent() => _free.TryTake(out var batch) ? batch : new FlightEvent[batchSize];
+
+        /// <summary>Starts writing <paramref name="batch"/>, first waiting for a slot if all are busy. The batch belongs to the writer now.</summary>
+        public async Task WriteAsync(FlightEvent[] batch, int count)
+        {
+            while (_inFlight.Count >= maxParallel)
+                await CompleteOneAsync();
+            _inFlight.Add(WriteOneAsync(batch, count));
+        }
+
+        public async Task DrainAsync()
+        {
+            while (_inFlight.Count > 0)
+                await CompleteOneAsync();
+        }
+
+        /// <summary>Cancels the writes still running and waits for them, ignoring their errors.</summary>
+        public async Task CancelAsync()
+        {
+            await _cancel.CancelAsync();
+            try
+            {
+                await Task.WhenAll(_inFlight);
+            }
+            catch
+            {
+                // the import already failed for its own reason
+            }
+            _inFlight.Clear();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_inFlight.Count > 0)
+                await CancelAsync();
+            _cancel.Dispose();
+        }
+
+        private async Task WriteOneAsync(FlightEvent[] batch, int count)
+        {
+            await sink.WriteBatchAsync(flightId, batch.AsMemory(0, count), _cancel.Token);
+            _free.Add(batch);
+        }
+
+        private async Task CompleteOneAsync()
+        {
+            var done = await Task.WhenAny(_inFlight);
+            _inFlight.Remove(done);
+            await done; // rethrows its failure
+        }
+    }
 
     private sealed class DiagnosticsCollector(int max) : IParseDiagnostics
     {
