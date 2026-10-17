@@ -1,5 +1,21 @@
 import type { ResolvedProfile, SymbolShape, ThreatSymbol } from './symbology'
 
+/** Faint phosphor halo: visible as glow, without widening strokes. */
+export const GLOW_ALPHA = 0.35
+export const GLOW_BLUR = 2.5
+
+/** About 1.5 px on a 600 px display, never below 1 px. */
+export const strokeWidth = (side: number) => Math.max(1, side / 400)
+
+/** #rrggbb (or #rgb) with an alpha; other colour formats are returned unchanged. */
+export function withAlpha(color: string, alpha: number): string {
+  const hex = color.trim().replace('#', '')
+  const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex
+  if (!/^[0-9a-f]{6}$/i.test(full)) return color
+  const n = parseInt(full, 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
+}
+
 export interface RwrFrame {
   profile: ResolvedProfile
   threats: ThreatSymbol[]
@@ -59,11 +75,14 @@ function drawSquare(ctx: CanvasRenderingContext2D, w: number, h: number, f: RwrF
   ctx.save()
   ctx.strokeStyle = phosphor
   ctx.fillStyle = phosphor
-  ctx.lineWidth = Math.max(1, m / 420)
-  ctx.lineCap = 'round'
-  ctx.shadowColor = phosphor
-  ctx.shadowBlur = f.still ? 0 : 5
-  ctx.font = `600 ${font}px 'IBM Plex Mono', ui-monospace, monospace`
+  // Thin, crisp strokes like a real MFD. The glow is a faint halo only: a full-strength shadow
+  // made 1.4 px lines render about 9 px wide (measured), which looked fat and blurry.
+  ctx.lineWidth = strokeWidth(m)
+  ctx.lineCap = 'butt'
+  ctx.lineJoin = 'miter'
+  ctx.shadowColor = withAlpha(phosphor, GLOW_ALPHA)
+  ctx.shadowBlur = f.still ? 0 : GLOW_BLUR
+  ctx.font = `400 ${font}px 'IBM Plex Mono', ui-monospace, monospace`
   ctx.textBaseline = 'middle'
 
   drawLegends(ctx, f.profile, sx, sy, sw, sh, font)
@@ -265,11 +284,16 @@ function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) 
 }
 
 function line(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number) {
+  // Horizontal and vertical lines on pixel centres stay sharp instead of smearing over two pixels.
+  if (y0 === y1) y0 = y1 = snap(y0)
+  if (x0 === x1) x0 = x1 = snap(x0)
   ctx.beginPath()
   ctx.moveTo(x0, y0)
   ctx.lineTo(x1, y1)
   ctx.stroke()
 }
+
+const snap = (v: number) => Math.round(v - 0.5) + 0.5
 
 function chamfer(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, c: number) {
   ctx.beginPath()
