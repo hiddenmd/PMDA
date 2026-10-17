@@ -2,7 +2,7 @@ import type { DockviewApi, SerializedDockview } from 'dockview-react'
 import { DEFAULT_GRAPH, graphTitle, type GraphSettings } from '../features/graphs/graphKinds'
 import { storage } from '../lib/preferences'
 
-export type PanelKind = 'flights' | 'info' | 'scope' | 'map' | 'emitters' | 'countermeasures' | 'alerts' | 'messages' | 'graph' | 'users'
+export type PanelKind = 'flights' | 'info' | 'scope' | 'map' | 'attitude' | 'emitters' | 'countermeasures' | 'alerts' | 'messages' | 'graph' | 'users'
 
 interface PanelSpec {
   title: string
@@ -17,6 +17,7 @@ export const PANELS: Record<PanelKind, PanelSpec> = {
   info: { title: 'Flight info' },
   scope: { title: 'RWR scope' },
   map: { title: 'Map' },
+  attitude: { title: 'Attitude' },
   emitters: { title: 'Active emitters' },
   countermeasures: { title: 'Countermeasures' },
   alerts: { title: 'Audio alerts' },
@@ -76,6 +77,8 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       api.addPanel({ id: 'alerts', component: 'alerts', title: PANELS.alerts.title, position: { referencePanel: 'countermeasures', direction: 'within' } })
       api.addPanel({ id: 'messages', component: 'messages', title: PANELS.messages.title, position: { referencePanel: 'scope', direction: 'below' } })
       api.addPanel({ id: 'map', component: 'map', title: PANELS.map.title, position: { referencePanel: 'messages', direction: 'within' } })
+      api.addPanel({ id: 'attitude', component: 'attitude', title: PANELS.attitude.title, position: { referencePanel: 'map', direction: 'right' } })
+      api.getPanel('map')?.api.setActive()
       api.getPanel('countermeasures')?.api.setActive()
       api.getPanel('flights')?.api.setActive()
     },

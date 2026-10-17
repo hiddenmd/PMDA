@@ -10,6 +10,7 @@ import { CountermeasuresPanel } from './panels/CountermeasuresPanel'
 import { EmittersPanel } from './panels/EmittersPanel'
 import { FlightInfoPanel } from './panels/FlightInfoPanel'
 import { FlightsPanel } from './panels/FlightsPanel'
+import { AttitudePanel } from './panels/AttitudePanel'
 import { MapPanel } from './panels/MapPanel'
 import { ScopePanel } from './panels/ScopePanel'
 import { UsersPanel } from './panels/UsersPanel'
@@ -21,6 +22,7 @@ const components: Record<PanelKind, FunctionComponent<IDockviewPanelProps>> = {
   info: FlightInfoPanel,
   scope: ScopePanel,
   map: MapPanel,
+  attitude: AttitudePanel,
   emitters: EmittersPanel,
   countermeasures: CountermeasuresPanel,
   alerts: AlertsPanel,
