@@ -45,17 +45,22 @@ export function usePlayback(flightId: string, durationMs: number) {
  * Space play/pause, ←/→ step, [ and ] slower/faster. Ignored while typing or on controls that use
  * the same keys themselves (buttons use Space, the scrubber and selects use arrows).
  */
-function usePlaybackShortcuts(send: (e: PlaybackEvent) => void, currentSpeed: () => Speed) {
+export function usePlaybackShortcuts(send: (e: PlaybackEvent) => void, currentSpeed: () => Speed) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented) return
+      // AltGr arrives as Ctrl+Alt; many European layouts need it to type [ and ].
+      const altGr = e.ctrlKey && e.altKey
+      if (((e.altKey || e.ctrlKey) && !altGr) || e.metaKey || e.defaultPrevented) return
       const target = e.target as HTMLElement
       const tag = target.tagName
       const typing = tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable || (tag === 'INPUT' && (target as HTMLInputElement).type !== 'range')
       if (typing) return
 
       const speedIndex = SPEEDS.indexOf(currentSpeed())
-      switch (e.key) {
+      // Match the physical bracket keys too, whatever character the layout puts on them.
+      const key = e.code === 'BracketLeft' ? '[' : e.code === 'BracketRight' ? ']' : e.key
+      if (altGr && key !== '[' && key !== ']') return
+      switch (key) {
         case ' ':
           if (tag === 'BUTTON') return
           send({ type: 'TOGGLE' })

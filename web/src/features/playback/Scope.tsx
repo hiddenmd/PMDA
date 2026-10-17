@@ -7,6 +7,8 @@ import { bandOf, scopePoint, type BandShape } from './scopeGeometry'
 type PlaybackActor = ActorRefFrom<typeof playbackMachine>
 
 const LABEL_MARGIN = 18
+/** Like an RWR, only the strongest threats get an ID label; the rest stay readable as symbols. */
+const MAX_LABELS = 12
 const MIN_SIZE = LABEL_MARGIN * 2 + 40
 
 interface Palette {
@@ -147,6 +149,8 @@ function paint(ctx: CanvasRenderingContext2D, size: number, p: Palette, emitters
   ctx.stroke()
 
   // Emitters: oldest first so the freshest draw on top; symbols fade with age unless motion is reduced.
+  // `emitters` arrives strongest first, which decides who gets a label.
+  const labelled = new Set(emitters.slice(0, MAX_LABELS).map((e) => e.emitterId))
   ctx.font = '600 11px "Fira Code", monospace'
   for (const e of [...emitters].sort((a, b) => b.ageMs - a.ageMs)) {
     const { x, y } = scopePoint(e.bearingDeg, e.amplitudeDb, c, c, radius)
@@ -155,8 +159,10 @@ function paint(ctx: CanvasRenderingContext2D, size: number, p: Palette, emitters
     ctx.fillStyle = p.symbol
     ctx.lineWidth = 2
     drawSymbol(ctx, bandOf(e.frequencyMHz).shape, x, y, 7)
-    ctx.fillStyle = p.text
-    ctx.fillText(String(e.emitterId), x, y - 14)
+    if (labelled.has(e.emitterId)) {
+      ctx.fillStyle = p.text
+      ctx.fillText(String(e.emitterId), x, y - 14)
+    }
   }
   ctx.globalAlpha = 1
 }

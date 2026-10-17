@@ -21,8 +21,11 @@ import { persistenceFor, stepForSpeed, type Speed } from '../features/playback/p
 export const CHUNK_STEPS = 300
 export const PREFETCH_STEPS = 150
 export const RETRY_DELAY_MS = 2_000
-/** A hidden tab or a breakpoint must not make the playhead jump. */
-export const MAX_TICK_MS = 250
+/**
+ * Upper bound for one tick. Playback follows real time even when frames are slow (a throttled or
+ * busy page still renders ~1 fps); only longer gaps, such as a debugger pause, are cut short.
+ */
+export const MAX_TICK_MS = 1_000
 
 interface FramesRange {
   fromMs: number
@@ -60,15 +63,25 @@ export interface PlaybackInput {
   speed?: Speed
 }
 
-/** requestAnimationFrame clock; stops when `playing` is left. */
+/**
+ * requestAnimationFrame clock; stops when `playing` is left. Hidden pages get no frames at all, so
+ * the clock restarts its reference time when the page becomes visible: no jump after a tab switch.
+ */
 export const clockActor = fromCallback<PlaybackEvent>(({ sendBack }) => {
   let last = performance.now()
+  const onVisibility = () => {
+    if (document.visibilityState === 'visible') last = performance.now()
+  }
+  document.addEventListener('visibilitychange', onVisibility)
   let handle = requestAnimationFrame(function tick(now) {
-    sendBack({ type: 'TICK', deltaMs: Math.min(MAX_TICK_MS, now - last) })
+    sendBack({ type: 'TICK', deltaMs: Math.min(MAX_TICK_MS, Math.max(0, now - last)) })
     last = now
     handle = requestAnimationFrame(tick)
   })
-  return () => cancelAnimationFrame(handle)
+  return () => {
+    cancelAnimationFrame(handle)
+    document.removeEventListener('visibilitychange', onVisibility)
+  }
 })
 
 /**
