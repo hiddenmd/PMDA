@@ -551,7 +551,7 @@ export interface components {
             total: number;
         };
         /** @enum {unknown} */
-        FlightStatus: "Importing" | "Completed" | "Failed";
+        FlightStatus: "Importing" | "Completed" | "Failed" | "Deleting";
         FlightSummaryDto: {
             /** Format: uuid */
             id: string;
@@ -1222,7 +1222,7 @@ export interface operations {
                 customerId?: string;
                 tail?: string;
                 mission?: string;
-                status?: "Importing" | "Completed" | "Failed" | null;
+                status?: "Importing" | "Completed" | "Failed" | "Deleting" | null;
                 startFrom?: string;
                 startTo?: string;
                 hasProblems?: boolean;

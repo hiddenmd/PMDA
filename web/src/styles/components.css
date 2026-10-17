@@ -444,3 +444,6 @@
   font-weight: var(--fw-medium);
   font-size: var(--fs-md);
 }
+.chip--deleting {
+  color: var(--color-muted-foreground);
+}

@@ -73,7 +73,7 @@ public static class FlightEndpoints
     public const string DeleteAllConfirmation = "DELETE";
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> Delete(
-        Guid id, FlightRepository flights, IHubContext<ImportHub, IImportClient> hub, CancellationToken ct)
+        Guid id, FlightRepository flights, FlightPurger purger, IHubContext<ImportHub, IImportClient> hub, CancellationToken ct)
     {
         var flight = await flights.GetAsync(id, ct);
         if (flight is null)
@@ -82,12 +82,13 @@ public static class FlightEndpoints
             return TypedResults.Problem("The flight is still being imported.", statusCode: StatusCodes.Status409Conflict);
 
         await flights.DeleteAsync([id], ct);
+        purger.Wake();
         await hub.Clients.All.FlightsChanged();
         return TypedResults.NoContent();
     }
 
     private static async Task<Results<Ok<DeleteResultDto>, ValidationProblem, ProblemHttpResult>> DeleteMany(
-        DeleteFlightsRequest request, FlightRepository flights, IHubContext<ImportHub, IImportClient> hub, CancellationToken ct)
+        DeleteFlightsRequest request, FlightRepository flights, FlightPurger purger, IHubContext<ImportHub, IImportClient> hub, CancellationToken ct)
     {
         var ids = (request.Ids ?? []).Distinct().ToArray();
         if (ids.Length is 0 or > MaxDeleteBatch)
@@ -99,6 +100,7 @@ public static class FlightEndpoints
                 return TypedResults.Problem($"Flight {id} is still being imported.", statusCode: StatusCodes.Status409Conflict);
         }
         var deleted = await flights.DeleteAsync(ids, ct);
+        purger.Wake();
         await hub.Clients.All.FlightsChanged();
         return TypedResults.Ok(new DeleteResultDto(deleted));
     }

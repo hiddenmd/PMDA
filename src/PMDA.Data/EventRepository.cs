@@ -42,7 +42,7 @@ public sealed class EventRepository(string connectionString)
 
         await using var conn = new SqlConnection(connectionString);
         var start = await conn.QuerySingleOrDefaultAsync<DateTime?>(new CommandDefinition(
-            "SELECT StartUtc FROM dbo.Flight WHERE FlightId = @flightId;", new { flightId }, cancellationToken: ct));
+            "SELECT StartUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
         if (start is null)
             return null;
 

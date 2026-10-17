@@ -36,6 +36,8 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddImports(builder.Configuration);
 builder.Services.AddPmdaAuth(builder.Configuration);
+builder.Services.AddSingleton<FlightPurger>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FlightPurger>());
 
 var app = builder.Build();
 

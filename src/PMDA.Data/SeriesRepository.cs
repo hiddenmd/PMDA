@@ -159,7 +159,7 @@ public sealed class SeriesRepository(string connectionString)
         ArgumentOutOfRangeException.ThrowIfGreaterThan(buckets, MaxBuckets);
 
         var flight = await conn.QuerySingleOrDefaultAsync<(DateTime StartUtc, DateTime? LastEventUtc)>(new CommandDefinition(
-            "SELECT StartUtc, LastEventUtc FROM dbo.Flight WHERE FlightId = @flightId;", new { flightId }, cancellationToken: ct));
+            "SELECT StartUtc, LastEventUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
         if (flight == default)
             return null;
 

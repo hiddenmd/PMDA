@@ -15,7 +15,8 @@ public sealed class FlightRepository(string connectionString)
 
     // CHARINDEX instead of LIKE: user text is matched literally, no wildcard escaping needed.
     private const string FilterSql = """
-        WHERE (@CustomerId IS NULL OR CustomerId = @CustomerId)
+        WHERE Status <> 3
+          AND (@CustomerId IS NULL OR CustomerId = @CustomerId)
           AND (@Tail IS NULL OR CHARINDEX(@Tail, Tail) > 0)
           AND (@Mission IS NULL OR CHARINDEX(@Mission, MissionId) > 0)
           AND (@Status IS NULL OR Status = @Status)
@@ -65,22 +66,52 @@ public sealed class FlightRepository(string connectionString)
         return new PagedResult<FlightRecord>(items, query.Page, query.PageSize, total);
     }
 
-    /// <summary>Deletes the given flights with their events and diagnostics, in one transaction.</summary>
-    /// <returns>The number of flights deleted (unknown ids are ignored).</returns>
+    /// <summary>
+    /// Deletes flights the fast way: marks them Deleting, which hides them from every query at once.
+    /// Their events are removed afterwards by <see cref="PurgeDeletedAsync"/> (removing millions of
+    /// columnstore rows takes tens of seconds, far too long for a request). Flights still importing
+    /// are left alone.
+    /// </summary>
+    /// <returns>The number of flights marked (unknown, importing or already deleted ids are ignored).</returns>
     public async Task<int> DeleteAsync(IReadOnlyCollection<Guid> flightIds, CancellationToken ct)
     {
         if (flightIds.Count == 0)
             return 0;
-
         await using var conn = new SqlConnection(connectionString);
-        await conn.OpenAsync(ct);
-        await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(ct);
-        var ids = new { Ids = flightIds.ToArray() };
-        await conn.ExecuteAsync(new CommandDefinition("DELETE dbo.FlightEvent WHERE FlightId IN @Ids;", ids, tx, commandTimeout: 0, cancellationToken: ct));
-        await conn.ExecuteAsync(new CommandDefinition("DELETE dbo.ImportDiagnostic WHERE FlightId IN @Ids;", ids, tx, cancellationToken: ct));
-        var deleted = await conn.ExecuteAsync(new CommandDefinition("DELETE dbo.Flight WHERE FlightId IN @Ids;", ids, tx, cancellationToken: ct));
-        await tx.CommitAsync(ct);
-        return deleted;
+        return await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE dbo.Flight SET Status = @Deleting WHERE FlightId IN @Ids AND Status IN (@Completed, @Failed);",
+            new { Ids = flightIds.ToArray(), Deleting = (byte)FlightStatus.Deleting, Completed = (byte)FlightStatus.Completed, Failed = (byte)FlightStatus.Failed },
+            cancellationToken: ct));
+    }
+
+    /// <summary>
+    /// Removes the data of flights marked Deleting, in batches of <paramref name="batchSize"/> events:
+    /// short transactions, nothing large to roll back, and other queries keep running in between.
+    /// Safe to stop at any point; the next run continues.
+    /// </summary>
+    /// <returns>The number of flights completely removed.</returns>
+    public async Task<int> PurgeDeletedAsync(int batchSize, CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connectionString);
+        var ids = (await conn.QueryAsync<Guid>(new CommandDefinition(
+            "SELECT FlightId FROM dbo.Flight WHERE Status = @Deleting;", new { Deleting = (byte)FlightStatus.Deleting }, cancellationToken: ct))).AsList();
+
+        foreach (var id in ids)
+        {
+            int removed;
+            do
+            {
+                removed = await conn.ExecuteAsync(new CommandDefinition(
+                    "DELETE TOP (@batchSize) FROM dbo.FlightEvent WHERE FlightId = @id;", new { id, batchSize }, commandTimeout: 0, cancellationToken: ct));
+            }
+            while (removed >= batchSize);
+
+            await conn.ExecuteAsync(new CommandDefinition("""
+                DELETE dbo.ImportDiagnostic WHERE FlightId = @id;
+                DELETE dbo.Flight WHERE FlightId = @id AND Status = @Deleting;
+                """, new { id, Deleting = (byte)FlightStatus.Deleting }, cancellationToken: ct));
+        }
+        return ids.Count;
     }
 
     /// <summary>
@@ -108,7 +139,7 @@ public sealed class FlightRepository(string connectionString)
     {
         await using var conn = new SqlConnection(connectionString);
         var rows = await conn.QueryAsync<string>(new CommandDefinition(
-            "SELECT DISTINCT CustomerId FROM dbo.Flight ORDER BY CustomerId;", cancellationToken: ct));
+            "SELECT DISTINCT CustomerId FROM dbo.Flight WHERE Status <> 3 ORDER BY CustomerId;", cancellationToken: ct));
         return rows.AsList();
     }
 
@@ -116,7 +147,7 @@ public sealed class FlightRepository(string connectionString)
     {
         await using var conn = new SqlConnection(connectionString);
         var flight = await conn.QuerySingleOrDefaultAsync<FlightRecord>(new CommandDefinition(
-            $"SELECT {FlightColumns} FROM dbo.Flight WHERE FlightId = @flightId;",
+            $"SELECT {FlightColumns} FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;",
             new { flightId },
             cancellationToken: ct));
         return flight is null ? null : AsUtc(flight);

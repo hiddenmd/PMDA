@@ -5,6 +5,8 @@ public enum FlightStatus : byte
     Importing = 0,
     Completed = 1,
     Failed = 2,
+    /// <summary>Deleted by a user: hidden everywhere, events being purged in the background.</summary>
+    Deleting = 3,
 }
 
 public sealed record FlightRecord(

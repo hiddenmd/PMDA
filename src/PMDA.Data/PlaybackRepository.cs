@@ -107,7 +107,7 @@ public sealed class PlaybackRepository(string connectionString)
 
         await using var conn = new SqlConnection(connectionString);
         var flight = await conn.QuerySingleOrDefaultAsync<(DateTime StartUtc, DateTime? LastEventUtc)>(new CommandDefinition(
-            "SELECT StartUtc, LastEventUtc FROM dbo.Flight WHERE FlightId = @flightId;", new { flightId }, cancellationToken: ct));
+            "SELECT StartUtc, LastEventUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
         if (flight == default)
             return null;
 
@@ -135,7 +135,7 @@ public sealed class PlaybackRepository(string connectionString)
 
     private static async Task<DateTime?> GetStartAsync(SqlConnection conn, Guid flightId, CancellationToken ct) =>
         await conn.QuerySingleOrDefaultAsync<DateTime?>(new CommandDefinition(
-            "SELECT StartUtc FROM dbo.Flight WHERE FlightId = @flightId;", new { flightId }, cancellationToken: ct));
+            "SELECT StartUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
 
     private static float NormalizeDeg(float deg) => ((deg % 360) + 360) % 360;
 

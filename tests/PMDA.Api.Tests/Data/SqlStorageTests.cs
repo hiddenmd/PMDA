@@ -102,6 +102,40 @@ public sealed class SqlStorageTests(SqlDatabase db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Deleting_hides_the_flight_at_once_and_purging_removes_its_data_in_batches()
+    {
+        var gone = (await Import(SampleFiles.Flight(events: 250, seed: 1))).FlightId;
+        var keep = (await Import(SampleFiles.Flight(events: 10, seed: 2))).FlightId;
+        await _flights.SaveDiagnosticsAsync(gone, [new ParseDiagnostic(1, "x")], default);
+
+        var marked = await _flights.DeleteAsync([gone], default);
+
+        Assert.Equal(1, marked);
+        Assert.Null(await _flights.GetAsync(gone, default));
+        Assert.Equal([keep], (await _flights.ListAsync(new FlightQuery(), default)).Items.Select(f => f.FlightId));
+        Assert.Equal(250, await db.ScalarAsync("SELECT COUNT(*) FROM dbo.FlightEvent WHERE FlightId = @FlightId", gone)); // not yet purged
+
+        var purged = await _flights.PurgeDeletedAsync(batchSize: 100, default);
+
+        Assert.Equal(1, purged);
+        Assert.Equal(0, await db.ScalarAsync("SELECT COUNT(*) FROM dbo.FlightEvent WHERE FlightId = @FlightId", gone));
+        Assert.Equal(0, await db.ScalarAsync("SELECT COUNT(*) FROM dbo.ImportDiagnostic"));
+        Assert.Equal(1, await db.ScalarAsync("SELECT COUNT(*) FROM dbo.Flight"));
+        Assert.Equal(10, await db.ScalarAsync("SELECT COUNT(*) FROM dbo.FlightEvent"));
+    }
+
+    [Fact]
+    public async Task Flights_still_importing_are_never_marked_deleted()
+    {
+        var importing = Guid.NewGuid();
+        var sink = new SqlEventSink(db.ConnectionString);
+        await sink.BeginFlightAsync(new FlightImportInfo(importing, new PMDA.Core.Parsing.FlightHeader("SAMPLE", 1, SampleFiles.Start, "T", "M"), "x.bin", null), default);
+
+        Assert.Equal(0, await _flights.DeleteAsync([importing], default));
+        Assert.Equal(1, await db.ScalarAsync("SELECT COUNT(*) FROM dbo.Flight WHERE Status = 0"));
+    }
+
+    [Fact]
     public async Task Unknown_flight_is_null()
     {
         Assert.Null(await _flights.GetAsync(Guid.NewGuid(), default));
