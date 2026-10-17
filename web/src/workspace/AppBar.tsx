@@ -1,6 +1,7 @@
 import type { DockviewApi } from 'dockview-react'
 import { Check, LayoutTemplate, PanelsTopLeft, Plus, Radar, RotateCcw, Save, Settings2, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import { useAuth } from '../auth/authContext'
 import { ConnectionBadge } from '../components/ConnectionBadge'
 import { Dialog } from '../components/Dialog'
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from '../components/Menu'
@@ -50,6 +51,8 @@ export function AppBar({ api, store, userMenu }: AppBarProps) {
 }
 
 function PanelsMenu({ api }: { api: DockviewApi | null }) {
+  const { isAdmin } = useAuth()
+  const kinds = (Object.keys(PANELS) as PanelKind[]).filter((k) => isAdmin || !PANELS[k].adminOnly)
   return (
     <Menu
       label="Add panel"
@@ -60,7 +63,7 @@ function PanelsMenu({ api }: { api: DockviewApi | null }) {
       }
     >
       {(close) =>
-        (Object.keys(PANELS) as PanelKind[]).map((kind) => (
+        kinds.map((kind) => (
           <MenuItem
             key={kind}
             icon={<Plus size={14} aria-hidden />}

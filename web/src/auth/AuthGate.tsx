@@ -18,8 +18,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await logout()
-    queryClient.clear()
+    // First flip the session (the gate shows the login screen), then forget the previous user's data.
+    // Clearing the whole cache first would detach the gate from its session query.
     queryClient.setQueryData(authKeys.me, null)
+    queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth' })
   }, [queryClient])
 
   const value = useMemo<AuthValue | null>(

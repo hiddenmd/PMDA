@@ -2,12 +2,14 @@ import type { DockviewApi, SerializedDockview } from 'dockview-react'
 import { DEFAULT_GRAPH, graphTitle, type GraphSettings } from '../features/graphs/graphKinds'
 import { storage } from '../lib/preferences'
 
-export type PanelKind = 'flights' | 'info' | 'scope' | 'emitters' | 'countermeasures' | 'messages' | 'graph'
+export type PanelKind = 'flights' | 'info' | 'scope' | 'emitters' | 'countermeasures' | 'messages' | 'graph' | 'users'
 
 interface PanelSpec {
   title: string
   /** Panels that can be open more than once get a unique id per instance. */
   multiple?: boolean
+  /** Only offered to administrators (the API enforces it regardless). */
+  adminOnly?: boolean
 }
 
 export const PANELS: Record<PanelKind, PanelSpec> = {
@@ -18,6 +20,7 @@ export const PANELS: Record<PanelKind, PanelSpec> = {
   countermeasures: { title: 'Countermeasures' },
   messages: { title: 'Message tables' },
   graph: { title: 'Graph', multiple: true },
+  users: { title: 'Users', adminOnly: true },
 }
 
 function graphPanel(id: string, settings: GraphSettings) {

@@ -57,6 +57,21 @@ dotnet run --project tools/PMDA.SampleGen -c Release -- --all samples
 
 `--list` shows the scenarios; `--scenario <name> <file>` writes one.
 
+## Accounts
+
+PMDA has its own user accounts (roles **Admin** and **Analyst**). On first start, with no users in the
+database, open PMDA **on the server machine** and create the administrator; the first-run screen is refused
+from other machines. Admins add users, change roles, deactivate accounts and reset passwords (user menu →
+Manage users) and are the only ones who can delete flights. Five wrong passwords lock an account for
+15 minutes (or until an admin resets the password).
+
+## Workspace
+
+Panels are tabs you can drag to split, stack, float or pop out; Layouts → Debrief / Analysis presets,
+save your own, reset. Settings: dark/light theme and UI size. Graph panels (as many as you like):
+parameter vs time, bearing vs time, flight profile, event rate, parameter vs parameter — drag to zoom,
+click to seek. Message tables show each message type around the playhead.
+
 ## Debrief playback
 
 Select a completed flight to replay it: RWR scope (bearing around the nose, stronger signals nearer the

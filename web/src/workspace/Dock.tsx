@@ -10,6 +10,7 @@ import { EmittersPanel } from './panels/EmittersPanel'
 import { FlightInfoPanel } from './panels/FlightInfoPanel'
 import { FlightsPanel } from './panels/FlightsPanel'
 import { ScopePanel } from './panels/ScopePanel'
+import { UsersPanel } from './panels/UsersPanel'
 
 const pmdaTheme: DockviewTheme = { name: 'pmda', className: 'dockview-theme-pmda', gap: 0, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
 
@@ -21,6 +22,7 @@ const components: Record<PanelKind, FunctionComponent<IDockviewPanelProps>> = {
   countermeasures: CountermeasuresPanel,
   messages: MessagesPanel,
   graph: GraphPanel as FunctionComponent<IDockviewPanelProps>,
+  users: UsersPanel,
 }
 
 interface DockProps {
