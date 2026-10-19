@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type * as GeoJSON from 'geojson'
-import type { GeoJSONSource, Map as MlMap, Marker } from 'maplibre-gl'
+import type { GeoJSONSource, Map as MlMap, Marker, RasterDEMSourceSpecification } from 'maplibre-gl'
 import type { Alert, EmitterFix, FlightTrack, MapSettings, PlaybackFrame } from '../../api/types'
 import { formatElapsed, formatUtcClock } from '../../lib/format'
 import type { PlaybackActor } from '../../workspace/workspaceContext'
@@ -8,6 +8,7 @@ import { ALERTS, clockPosition } from '../alerts/alerts'
 import { stepForSpeed, viewAt } from '../playback/playbackView'
 import { buildThreats, classify, type ResolvedProfile } from '../rwr/symbology'
 import { circlePolygon, ellipsePolygon, graticule, NOMINAL_RANGE_M, wedgePolygon } from './geo'
+import type { FlightLayer, SiteDome } from './engine/threeLayer'
 import type { StyleTokens } from './style/tacticalStyle'
 import { destination, formatLatLon, groundSpeedAt, headingAt, metresToFeet, msToKnots, positionAt, sampleIndex } from './track'
 
@@ -19,6 +20,8 @@ const SWEEP_PERIOD_MS = 3_000
 const SWEEP_WIDTH_DEG = 30
 /** Sweep radius around a locked site whose class has no nominal range. */
 const SWEEP_FALLBACK_M = 8_000
+const PITCH_3D = 60
+const TERRAIN_ATTRIBUTION = 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a>'
 
 const FIXED_WING =
   '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 1.5l1.3 7.6 8.2 4.3v1.7l-8.2-2.1-.4 5.6 2.9 2.1v1.5L12 21.1l-3.8 1.1v-1.5l2.9-2.1-.4-5.6-8.2 2.1v-1.7l8.2-4.3z"/></svg>'
@@ -65,6 +68,8 @@ export function MapView(props: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MlMap | null>(null)
   const boundsRef = useRef<[[number, number], [number, number]] | null>(null)
+  /** Switches the live map between 2D and 3D; set once the map exists. */
+  const apply3dRef = useRef<((on: boolean) => void) | null>(null)
   // MapLibre needs WebGL 2; without it only the readouts follow the playhead.
   const webgl = typeof WebGL2RenderingContext !== 'undefined'
   const [failed, setFailed] = useState(false)
@@ -123,7 +128,14 @@ export function MapView(props: MapViewProps) {
         // source and layer added here. HTML markers survive by design.
         let overlays = false
         map.on('style.load', () => {
-          if (!map!.getSource('track-whole')) addOverlays()
+          if (map!.getSource('track-whole')) return
+          addOverlays()
+          if (live.current.mode === '3d') apply3d(true)
+        })
+        // Drop lines and domes stand on the terrain, which is only known for loaded tiles: re-read it when the map
+        // settles. setGroundElevation repaints only when a height changed, so this doesn't loop.
+        map.on('idle', () => {
+          if (flightLayer && map!.getTerrain()) flightLayer.setGroundElevation((lon, lat) => map!.queryTerrainElevation([lon, lat]))
         })
 
         function addOverlays() {
@@ -150,6 +162,7 @@ export function MapView(props: MapViewProps) {
           m.addLayer({ id: 'bearings', type: 'line', source: 'bearings', paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.85, 'line-dasharray': [3, 2.5] } })
 
           overlays = true
+          flightLayer = null // dropped with the old style
           paintFixes()
           last.position = -1 // force a redraw
           sweepShown = true
@@ -248,6 +261,62 @@ export function MapView(props: MapViewProps) {
         resizeObserver.observe(container)
         observers.push(resizeObserver)
 
+        // 3D mode: terrain and hillshade from the DEM tiles, plus the three.js flight layer (both loaded on first use).
+        let flightLayer: FlightLayer | null = null
+        let threeLoad: Promise<typeof import('./engine/threeLayer')> | null = null
+        function apply3d(on: boolean) {
+          const m = map!
+          if (!on) {
+            if (m.getLayer('flight-3d')) m.removeLayer('flight-3d')
+            flightLayer = null
+            if (m.getTerrain()) m.setTerrain(null)
+            if (m.getLayer('hillshade')) m.removeLayer('hillshade')
+            last.position = -1 // redraw now, so the flat aircraft symbol returns even while paused
+            m.easeTo({ pitch: 0, bearing: 0, duration: 600 })
+            return
+          }
+          threeLoad ??= import('./engine/threeLayer')
+          void threeLoad
+            .then((three) => {
+              // The analyst may have switched back, or the style may be reloading, while three.js loaded.
+              if (disposed || live.current.mode !== '3d' || !overlays) return
+              const t = tokens()
+              if (settings.terrainUrl) {
+                const dem: RasterDEMSourceSpecification = { type: 'raster-dem', tiles: [settings.terrainUrl], tileSize: 256, encoding: 'terrarium', maxzoom: 14 }
+                if (!m.getSource('terrain')) m.addSource('terrain', { ...dem, attribution: TERRAIN_ATTRIBUTION })
+                // A separate source for the hillshade: sharing the terrain's degrades both (MapLibre warns).
+                if (!m.getSource('hillshade-dem')) m.addSource('hillshade-dem', dem)
+                if (!m.getLayer('hillshade'))
+                  m.addLayer(
+                    {
+                      id: 'hillshade',
+                      type: 'hillshade',
+                      source: 'hillshade-dem',
+                      paint: { 'hillshade-shadow-color': t.background, 'hillshade-highlight-color': t.borderStrong, 'hillshade-accent-color': t.border, 'hillshade-exaggeration': 0.35 },
+                    },
+                    'graticule',
+                  )
+                m.setTerrain({ source: 'terrain', exaggeration: 1 })
+              }
+              if (!m.getLayer('flight-3d')) {
+                const domes: SiteDome[] = []
+                for (const [emitterId, info] of fixInfo) if (info.range) domes.push({ emitterId, lat: info.lat, lon: info.lon, range: info.range, color: info.color })
+                flightLayer = three.createFlightLayer({
+                  track,
+                  fixes: domes,
+                  platform: platform === 'Helicopter' ? 'Helicopter' : 'FixedWing',
+                  color: t.primary,
+                  dimColor: css(container, '--color-series-navigation'),
+                })
+                m.addLayer(flightLayer)
+                last.position = -1 // place the aircraft at once
+              }
+              m.easeTo({ pitch: PITCH_3D, duration: 600 })
+            })
+            .catch((error: unknown) => console.warn('3D map failed to start', error))
+        }
+        apply3dRef.current = apply3d
+
         const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
         let last = { position: -1, frames: null as unknown, profile: null as unknown, follow: false }
         let lastIndex = -2
@@ -290,6 +359,12 @@ export function MapView(props: MapViewProps) {
           }
           source('track-flown')?.setData(lineString([...flown, here]))
           aircraft.setLngLat(here).setRotation(heading ?? 0)
+          // In 3D the model flies at altitude; the flat symbol would sit on the ground beneath it.
+          aircraftEl.style.visibility = flightLayer ? 'hidden' : ''
+          if (flightLayer) {
+            const locked = currentProfile ? buildThreats(viewAt(frames, positionMs, stepForSpeed(speed)).emitters, currentProfile).filter((t) => t.locked) : []
+            flightLayer.setPlayhead(positionMs, new Set(locked.map((t) => t.emitterId)))
+          }
 
           // Lines of bearing to tracked or critical threats: true bearing = track + relative bearing
           // (track over the ground stands in for the heading the RWR measured against).
@@ -308,7 +383,10 @@ export function MapView(props: MapViewProps) {
           })
 
           if (following) {
-            if (live.current.mode === '3d') m.easeTo({ center: here, bearing: heading ?? m.getBearing(), duration: 0 })
+            // In 3D the camera rides behind the aircraft, but never cuts short the tilt into (or out of) 3D.
+            if (live.current.mode === '3d') {
+              if (!m.isEasing()) m.jumpTo({ center: here, bearing: heading ?? m.getBearing() })
+            }
             else {
               // Re-centre only when the aircraft nears the edge, so tiles are not reloaded every frame.
               const canvas = m.getCanvas()
@@ -358,6 +436,7 @@ export function MapView(props: MapViewProps) {
       markers.forEach((m) => m.remove())
       map?.remove()
       mapRef.current = null
+      apply3dRef.current = null
     }
   }, [actor, track, alerts, settings, startUtc, readout, platform, fixes, webgl])
 
@@ -368,9 +447,7 @@ export function MapView(props: MapViewProps) {
   }, [fitRequest])
 
   useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    map.easeTo({ pitch: mode === '3d' ? 60 : 0, duration: 600 })
+    apply3dRef.current?.(mode === '3d')
   }, [mode])
 
   return (

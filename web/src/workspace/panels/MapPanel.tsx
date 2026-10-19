@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Crosshair, Maximize } from '../../components/icons'
 import { useRef, useState } from 'react'
 import { getEmitterFixes, getMapSettings, getTrack } from '../../api/playback'
-import type { EmitterFix } from '../../api/types'
+import type { Alert, EmitterFix } from '../../api/types'
 import { useAlerts } from '../../features/alerts/useAlerts'
 import { MapView, type MapReadout } from '../../features/map/MapView'
 import { useSymbology } from '../../features/rwr/useSymbology'
@@ -11,8 +11,9 @@ import { NoPlayback } from './EmptyPanel'
 
 /** About one position per screen pixel of a wide panel; the server averages within each slice. */
 const TRACK_POINTS = 4_000
-/** Stable while the fixes load, so the map isn't rebuilt on every render. */
+/** Stable stand-ins while data loads (or fails), so the map isn't rebuilt on every render. */
 const NO_FIXES: readonly EmitterFix[] = []
+const NO_ALERTS: readonly Alert[] = []
 
 export function MapPanel() {
   const { playback, flight, flightLoading } = useWorkspace()
@@ -94,7 +95,7 @@ function FlightMap({ flightId, actor, startUtc }: { flightId: string; actor: Pla
         <MapView
           actor={actor}
           track={track.data!}
-          alerts={alerts.data ?? []}
+          alerts={alerts.data ?? NO_ALERTS}
           settings={settings.data!}
           profile={profile}
           startUtc={startUtc}
