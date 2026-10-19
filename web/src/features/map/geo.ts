@@ -1,3 +1,4 @@
+import type * as GeoJSON from 'geojson'
 import type { ThreatClass } from '../rwr/symbology'
 import { destination } from './track'
 

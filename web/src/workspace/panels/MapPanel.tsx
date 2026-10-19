@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Crosshair, Maximize } from '../../components/icons'
 import { useRef, useState } from 'react'
-import { getMapSettings, getTrack } from '../../api/playback'
+import { getEmitterFixes, getMapSettings, getTrack } from '../../api/playback'
+import type { EmitterFix } from '../../api/types'
 import { useAlerts } from '../../features/alerts/useAlerts'
 import { MapView, type MapReadout } from '../../features/map/MapView'
 import { useSymbology } from '../../features/rwr/useSymbology'
@@ -10,6 +11,8 @@ import { NoPlayback } from './EmptyPanel'
 
 /** About one position per screen pixel of a wide panel; the server averages within each slice. */
 const TRACK_POINTS = 4_000
+/** Stable while the fixes load, so the map isn't rebuilt on every render. */
+const NO_FIXES: readonly EmitterFix[] = []
 
 export function MapPanel() {
   const { playback, flight, flightLoading } = useWorkspace()
@@ -24,10 +27,14 @@ function FlightMap({ flightId, actor, startUtc }: { flightId: string; actor: Pla
     queryFn: ({ signal }) => getTrack(flightId, TRACK_POINTS, signal),
     staleTime: Infinity, // a completed flight never changes
   })
+  // The map doesn't wait for the estimated sites: they draw once they arrive.
+  const fixes = useQuery({ queryKey: ['flights', 'emitter-fixes', flightId], queryFn: ({ signal }) => getEmitterFixes(flightId, signal), staleTime: Infinity })
   const alerts = useAlerts(flightId)
   const { profile } = useSymbology()
   const [follow, setFollow] = useState(true)
   const [fitRequest, setFitRequest] = useState(0)
+  const [mode, setMode] = useState<'2d' | '3d'>('2d')
+  const unresolved = fixes.data?.filter((f) => !f.resolved) ?? []
   const readout = useRef<MapReadout>({ lat: null, lon: null, alt: null, heading: null, speed: null })
 
   const error = settings.error ?? track.error
@@ -49,12 +56,32 @@ function FlightMap({ flightId, actor, startUtc }: { flightId: string; actor: Pla
         >
           <Maximize size={14} aria-hidden /> Whole track
         </button>
+        <div className="segmented" role="group" aria-label="Map view">
+          {(['2d', '3d'] as const).map((m) => (
+            <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>
+              {m.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <span className="panel-toolbar__spacer" />
         <span className="map-legend small muted" aria-hidden>
           <span className="map-legend__missile" /> Missile alert
           <span className="map-legend__line map-legend__line--lock" /> Tracking radar
           <span className="map-legend__line map-legend__line--critical" /> Critical threat
+          <span className="map-legend__site" /> Est. site (95%)
         </span>
+        {unresolved.length > 0 && (
+          <details className="map-unresolved small">
+            <summary>Unresolved: {unresolved.length}</summary>
+            <ul>
+              {unresolved.map((f) => (
+                <li key={f.emitterId}>
+                  Emitter {f.emitterId} — {f.reason}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
 
       {error ? (
@@ -75,6 +102,8 @@ function FlightMap({ flightId, actor, startUtc }: { flightId: string; actor: Pla
           fitRequest={fitRequest}
           onFollowChange={setFollow}
           readout={readout}
+          fixes={fixes.data ?? NO_FIXES}
+          mode={mode}
         />
       )}
 

@@ -773,20 +773,23 @@
   position: relative;
   min-height: 0;
 }
-.map-view__map {
+/* Beats maplibre-gl.css's `.maplibregl-map { position: relative }`, which loads after the app's styles */
+.map-view .map-view__map {
   position: absolute;
   inset: 0;
   font-family: var(--font-sans);
 }
-/* Beats leaflet.css's own #ddd, which loads after the app's styles */
-.map-view .leaflet-container {
-  background: var(--color-muted);
-}
-.map-view__note {
+.map-view__notes {
   position: absolute;
   left: var(--space-md);
   bottom: var(--space-md);
-  z-index: 500;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+.map-view__note {
   margin: 0;
   padding: var(--space-xs) var(--space-md);
   border-radius: var(--radius-control);
@@ -794,26 +797,103 @@
   color: var(--color-muted-foreground);
   font-size: var(--fs-xs);
 }
-/* Leaflet chrome in the app's colours */
-.map-view .leaflet-control-zoom a,
-.map-view .leaflet-control-attribution {
-  background: var(--color-card);
-  color: var(--color-foreground);
-  border-color: var(--color-border);
+/* MapLibre chrome in the app's colours */
+.map-view .maplibregl-map {
+  font-family: var(--font-sans);
+  background: var(--color-background);
 }
-.map-view .leaflet-control-attribution a {
-  color: var(--color-link);
-}
-.map-view .leaflet-tooltip {
-  background: var(--color-card);
-  color: var(--color-foreground);
-  border: 1px solid var(--color-border-strong);
-  box-shadow: var(--shadow-popover);
-  font-family: var(--font-mono);
+.map-view .maplibregl-ctrl-attrib {
+  background: color-mix(in srgb, var(--color-card) 80%, transparent);
+  color: var(--color-muted-foreground);
   font-size: var(--fs-xs);
 }
-.map-view .leaflet-tooltip-top::before {
-  border-top-color: var(--color-border-strong);
+.map-view .maplibregl-ctrl-attrib a {
+  color: var(--color-link);
+}
+.map-view .maplibregl-ctrl-group {
+  background: var(--color-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  box-shadow: none;
+}
+.map-view .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--color-border);
+}
+.map-view .maplibregl-ctrl-icon {
+  filter: invert(0.85);
+}
+:root[data-theme='light'] .map-view .maplibregl-ctrl-icon {
+  filter: none;
+}
+.map-endpoint {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-foreground);
+  border-radius: 50%;
+  background: var(--color-card);
+}
+.map-alert {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+/* Estimated emitter site: a diamond in the lethality colour with "CODE EST." */
+.map-site {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.map-site__diamond {
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  border: 2px solid currentColor;
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+.map-site--critical {
+  color: var(--color-alert-critical);
+}
+.map-site--lethal {
+  color: var(--color-alert-warning);
+}
+.map-site--nonlethal {
+  color: var(--color-muted-foreground);
+}
+.map-site__label {
+  text-shadow: 0 0 3px var(--color-background), 0 0 3px var(--color-background);
+}
+.map-legend__site {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 4px 0 8px;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--color-alert-warning);
+}
+.map-unresolved {
+  position: relative;
+}
+.map-unresolved summary {
+  cursor: pointer;
+  color: var(--color-muted-foreground);
+}
+.map-unresolved ul {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  margin: 4px 0 0;
+  padding: var(--space-sm) var(--space-md) var(--space-sm) var(--space-xl);
+  background: var(--color-card);
+  border: 1px solid var(--color-border-strong);
+  white-space: nowrap;
 }
 .map-aircraft {
   display: grid;
