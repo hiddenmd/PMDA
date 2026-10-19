@@ -195,15 +195,16 @@
   align-items: start;
   gap: var(--space-md);
   padding: var(--space-sm) var(--space-sm);
-  border-radius: var(--radius-control);
+  border-radius: 0;
   border: 1px solid transparent;
 }
 .flight-row:hover {
-  background: var(--color-muted);
+  background: var(--color-hover);
 }
 .flight-row:has(.flight-item[aria-current='true']) {
   background: var(--color-selection);
-  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 var(--hud-glow) color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 .flight-row .checkbox {
   margin-top: calc(6px * var(--ui-scale));
@@ -247,7 +248,8 @@
   padding: var(--space-sm) var(--space-md);
   font-size: var(--fs-sm);
   background: var(--color-selection);
-  border-radius: var(--radius-control);
+  border-left: 2px solid var(--color-primary);
+  border-radius: 0;
 }
 .pager {
   display: flex;
@@ -284,11 +286,17 @@
 }
 .kpi {
   padding: var(--space-md) var(--space-lg);
-  background: var(--color-muted);
-  border-radius: var(--radius-panel);
+  background: var(--color-panel-header);
+  border: 1px solid var(--color-border);
+  border-left: 2px solid var(--color-primary);
+  border-radius: 0;
 }
 .kpi__label {
-  font-size: var(--fs-xs);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
   color: var(--color-muted-foreground);
 }
 .kpi__value {
@@ -325,11 +333,16 @@
   font-size: var(--fs-sm);
 }
 .readout dt {
-  font-size: var(--fs-xs);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
   color: var(--color-muted-foreground);
 }
 .readout dd {
   margin: 0;
+  color: var(--color-primary);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -369,7 +382,9 @@
   margin-left: auto;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: var(--fs-md);
+  font-size: var(--fs-xl);
+  color: var(--color-primary);
+  text-shadow: 0 0 var(--hud-glow) color-mix(in srgb, var(--color-primary) 45%, transparent);
 }
 .transport__status {
   display: inline-flex;
@@ -387,7 +402,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  border-radius: var(--radius-control);
+  border-radius: 0;
+  outline: 1px solid var(--color-border);
   background: var(--color-muted);
 }
 .timeline input[type='range'] {
@@ -410,18 +426,19 @@
 }
 .timeline input[type='range']::-webkit-slider-thumb {
   appearance: none;
-  width: 3px;
+  width: 2px;
   height: calc(34px * var(--ui-scale));
-  background: var(--color-accent);
-  border-radius: 2px;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: var(--color-primary);
+  border-radius: 0;
+  box-shadow: 0 0 var(--hud-glow) var(--color-primary);
 }
 .timeline input[type='range']::-moz-range-thumb {
-  width: 3px;
+  width: 2px;
   height: calc(34px * var(--ui-scale));
   border: 0;
-  background: var(--color-accent);
-  border-radius: 2px;
+  background: var(--color-primary);
+  border-radius: 0;
+  box-shadow: 0 0 var(--hud-glow) var(--color-primary);
 }
 .timeline__axis {
   position: relative;
@@ -484,6 +501,7 @@
   display: flex;
   gap: 2px;
   padding: 0 var(--space-sm);
+  background: var(--color-panel-header);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
 }
@@ -493,8 +511,11 @@
   gap: var(--space-sm);
   height: var(--control-height);
   padding: 0 var(--space-md);
-  font: inherit;
-  font-size: var(--fs-sm);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
   color: var(--color-muted-foreground);
   background: transparent;
   border: 0;
@@ -503,7 +524,7 @@
   white-space: nowrap;
 }
 .tabs button[aria-selected='true'] {
-  color: var(--color-foreground);
+  color: var(--color-primary);
   border-bottom-color: var(--color-primary);
 }
 .tabs .count {
@@ -528,10 +549,13 @@
   top: 0;
   z-index: 1;
   height: calc(26px * var(--ui-scale));
-  background: var(--color-card);
+  background: var(--color-panel-header);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
   border-bottom: 1px solid var(--color-border);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
   color: var(--color-muted-foreground);
 }
 .vtable__row {
@@ -542,11 +566,11 @@
   cursor: pointer;
 }
 .vtable__row:hover {
-  background: var(--color-muted);
+  background: var(--color-hover);
 }
 .vtable__row.is-current {
   background: var(--color-selection);
-  box-shadow: inset 2px 0 0 var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
 }
 .vtable__cell {
   padding: 0 var(--space-md);
@@ -596,19 +620,29 @@
   place-items: center;
   min-height: 100%;
   padding: var(--space-xl);
+  /* Static radar-ring motif behind the card */
   background:
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 60%),
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      transparent 0 calc(79px * var(--ui-scale)),
+      color-mix(in srgb, var(--color-primary) 9%, transparent) calc(79px * var(--ui-scale)) calc(80px * var(--ui-scale))
+    ),
+    linear-gradient(90deg, transparent calc(50% - 0.5px), color-mix(in srgb, var(--color-primary) 7%, transparent) 0 calc(50% + 0.5px), transparent 0),
+    linear-gradient(0deg, transparent calc(50% - 0.5px), color-mix(in srgb, var(--color-primary) 7%, transparent) 0 calc(50% + 0.5px), transparent 0),
     var(--color-background);
 }
 .login__card {
+  position: relative;
   display: grid;
   gap: var(--space-xl);
   width: min(380px, 100%);
   padding: var(--space-2xl);
   background: var(--color-card);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-popover);
+  --hud-bracket: var(--color-primary);
+  --hud-bracket-size: 12px;
 }
 .login__brand {
   display: flex;
@@ -616,7 +650,10 @@
   gap: var(--space-md);
 }
 .login__brand svg {
-  color: var(--color-accent);
+  color: var(--color-primary);
+}
+.login__brand h1 {
+  color: var(--color-primary);
 }
 .login__form {
   display: grid;
@@ -668,7 +705,7 @@
   color: var(--color-foreground);
   background: transparent;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 .graph-legend__item[aria-pressed='false'] {
@@ -682,7 +719,8 @@
   bottom: 0;
   left: 0;
   width: 0;
-  border-left: 2px solid var(--color-accent);
+  border-left: 2px solid var(--color-primary);
+  box-shadow: 0 0 var(--hud-glow) var(--color-primary);
   pointer-events: none;
 }
 .graph-area .u-select {
@@ -703,6 +741,7 @@
 }
 .alert-severity--critical {
   color: var(--color-alert-critical);
+  filter: drop-shadow(0 0 calc(var(--hud-glow) / 2) var(--color-alert-critical));
 }
 .alert-severity--warning {
   color: var(--color-alert-warning);
@@ -776,15 +815,15 @@
   place-items: center;
 }
 .map-aircraft svg {
-  fill: var(--color-accent);
+  fill: var(--color-primary);
   stroke: var(--color-background);
   stroke-width: 1;
   paint-order: stroke;
-  filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.6));
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-primary) 60%, transparent));
 }
 .map-aircraft .rotor {
   fill: none;
-  stroke: var(--color-accent);
+  stroke: var(--color-primary);
   stroke-width: 1;
   stroke-dasharray: 3 2;
 }
@@ -858,4 +897,22 @@
 }
 .readout--attitude {
   grid-template-columns: repeat(auto-fit, minmax(calc(100px * var(--ui-scale)), 1fr));
+}
+
+/* ---------- HUD panels: transport, graph cursor ---------- */
+
+.transport__controls .btn--icon {
+  border: 1px solid var(--color-border-strong);
+}
+.transport__controls .btn--primary.btn--icon {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 0 var(--hud-glow) color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+.graph-area .u-cursor-x,
+.graph-area .u-cursor-y {
+  border-color: var(--color-primary) !important;
+}
+.graph-legend {
+  background: var(--color-panel-header);
 }

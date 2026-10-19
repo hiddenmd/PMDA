@@ -192,7 +192,7 @@ function build(g: GraphData, hidden: ReadonlySet<string>, _theme: number): Built
     font: `${css.getPropertyValue('--fs-xs').trim() || '11px'} 'IBM Plex Mono', monospace`,
   }
   const timeAxis: uPlot.Axis = { ...axisBase, space: 90, values: (_u, splits) => splits.map((ms) => formatElapsed(ms)) }
-  const yAxis = (label: string): uPlot.Axis => ({ ...axisBase, label, labelFont: `${css.getPropertyValue('--fs-xs').trim() || '11px'} 'IBM Plex Sans', sans-serif`, size: 60 })
+  const yAxis = (label: string): uPlot.Axis => ({ ...axisBase, label, labelFont: `600 ${css.getPropertyValue('--fs-label').trim() || '12px'} ${v('--font-display')}`, size: 60 })
   const base = (width: number, height: number): Pick<uPlot.Options, 'width' | 'height' | 'legend' | 'padding'> => ({
     width,
     height,
