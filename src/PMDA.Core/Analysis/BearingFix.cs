@@ -27,8 +27,10 @@ public static class BearingFix
     public const double RangeFloorM = 1_000;
     public const int WeightedIterations = 3;
     public const double Chi2Two95 = 5.991;
-    public const int RefineIterations = 5;
 
+    private const int RefineIterations = 8;
+    private const int MaxHalvings = 5;
+    private const double RefineToleranceM = 0.1;
     private const double EarthRadiusM = 6_371_000;
     private const double Rad = Math.PI / 180;
 
@@ -78,26 +80,63 @@ public static class BearingFix
         }
 
         // The tangent plane ignores meridian convergence and great-circle curvature (about 100 m over 60 km), so polish
-        // the fix with Gauss-Newton on the true spherical bearings, minimising the squared angular residuals.
-        for (var iteration = 0; iteration < RefineIterations; iteration++)
+        // the fix with guarded Gauss-Newton on the true spherical bearings, minimising the squared angular residuals.
+        double Cost(double x, double y)
         {
-            double h11 = 0, h12 = 0, h22 = 0, g1 = 0, g2 = 0;
-            var fixLat = lat0 + sy / ky;
-            var fixLon = lon0 + sx / kx;
+            var la = lat0 + y / ky;
+            var lo = lon0 + x / kx;
+            var c = 0.0;
             for (var i = 0; i < n; i++)
             {
-                var dx = sx - p[i].X;
-                var dy = sy - p[i].Y;
+                var e = Wrap(p[i].T - GreatCircleBearing(observations[i].Lat, observations[i].Lon, la, lo));
+                c += e * e;
+            }
+            return c;
+        }
+
+        // Normal matrix JᵀJ and gradient Jᵀe of the angular residuals at (x, y).
+        (double H11, double H12, double H22, double G1, double G2) Normal(double x, double y)
+        {
+            double h11 = 0, h12 = 0, h22 = 0, g1 = 0, g2 = 0;
+            var la = lat0 + y / ky;
+            var lo = lon0 + x / kx;
+            for (var i = 0; i < n; i++)
+            {
+                var dx = x - p[i].X;
+                var dy = y - p[i].Y;
                 var r2 = Math.Max(RangeFloorM * RangeFloorM, dx * dx + dy * dy);
-                var e = Wrap(p[i].T - GreatCircleBearing(observations[i].Lat, observations[i].Lon, fixLat, fixLon));
+                var e = Wrap(p[i].T - GreatCircleBearing(observations[i].Lat, observations[i].Lon, la, lo));
                 double j1 = dy / r2, j2 = -dx / r2; // d(bearing)/d(east, north) of the fix
                 h11 += j1 * j1; h12 += j1 * j2; h22 += j2 * j2;
                 g1 += j1 * e; g2 += j2 * e;
             }
+            return (h11, h12, h22, g1, g2);
+        }
+
+        var cost = Cost(sx, sy);
+        for (var iteration = 0; iteration < RefineIterations && double.IsFinite(cost); iteration++)
+        {
+            var (h11, h12, h22, g1, g2) = Normal(sx, sy);
             var hDet = h11 * h22 - h12 * h12;
-            if (hDet <= 0) break;
-            sx += (h22 * g1 - h12 * g2) / hDet;
-            sy += (h11 * g2 - h12 * g1) / hDet;
+            if (!(hDet > 0)) break;
+            double dx = (h22 * g1 - h12 * g2) / hDet, dy = (h11 * g2 - h12 * g1) / hDet;
+            if (!double.IsFinite(dx) || !double.IsFinite(dy)) break;
+            if (Math.Sqrt(dx * dx + dy * dy) < RefineToleranceM) break;
+
+            var accepted = false;
+            for (var halving = 0; halving <= MaxHalvings && !accepted; halving++)
+            {
+                var trialCost = Cost(sx + dx, sy + dy);
+                if (double.IsFinite(trialCost) && trialCost < cost)
+                {
+                    sx += dx; sy += dy; cost = trialCost; accepted = true;
+                }
+                else
+                {
+                    dx /= 2; dy /= 2;
+                }
+            }
+            if (!accepted) break;
         }
 
         // Angular residuals (spherical bearing from each observer to the fix vs the measured bearing).
@@ -121,10 +160,12 @@ public static class BearingFix
         if (spreadDeg < MinSpreadDeg)
             return Unresolved(n, "Too little angle change", spreadDeg, rmsDeg);
 
-        // Covariance C = σ²·A⁻¹ (A is the final weighted normal matrix), then its eigen-decomposition.
-        var detA = a11 * a22 - a12 * a12;
-        var s2 = sigma * sigma / detA;
-        double c11 = s2 * a22, c22 = s2 * a11, c12 = -s2 * a12;
+        // Covariance C = σ²·H⁻¹ from the Gauss-Newton normal matrix H = JᵀJ at the returned point, so the point and
+        // the ellipse come from one model; then its eigen-decomposition.
+        var (m11, m12, m22, _, _) = Normal(sx, sy);
+        var detH = m11 * m22 - m12 * m12;
+        var s2 = sigma * sigma / detH;
+        double c11 = s2 * m22, c22 = s2 * m11, c12 = -s2 * m12;
         var mid = (c11 + c22) / 2;
         var rad = Math.Sqrt(Math.Max(0, (c11 - c22) * (c11 - c22) / 4 + c12 * c12));
         var major = Math.Sqrt(Chi2Two95 * (mid + rad));
@@ -132,10 +173,13 @@ public static class BearingFix
         var phi = 0.5 * Math.Atan2(2 * c12, c11 - c22); // major axis from +east, counter-clockwise
         var azimuth = ((90 - phi / Rad) % 180 + 180) % 180;
 
-        if (major > MaxMajorM)
+        var fixLat = lat0 + sy / ky;
+        var fixLon = lon0 + sx / kx;
+        if (!double.IsFinite(fixLat) || !double.IsFinite(fixLon) || !double.IsFinite(major) || !double.IsFinite(minor)
+            || !double.IsFinite(azimuth) || major > MaxMajorM)
             return Unresolved(n, "Too uncertain", spreadDeg, rmsDeg);
 
-        return new BearingFixResult(true, lat0 + sy / ky, lon0 + sx / kx, major, minor, azimuth, n, spreadDeg, rmsDeg, null);
+        return new BearingFixResult(true, fixLat, fixLon, major, minor, azimuth, n, spreadDeg, rmsDeg, null);
     }
 
     private static BearingFixResult Unresolved(int n, string reason, double spreadDeg = 0, double rmsDeg = 0) =>

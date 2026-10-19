@@ -71,6 +71,31 @@ public sealed class BearingFixTests
     }
 
     [Fact]
+    public void A_site_close_to_the_flight_line_resolves_finitely_or_not_at_all()
+    {
+        var fix = BearingFix.Solve(Observe(44.312, 26.2, 200, noiseDeg: 1.5, seed: 1));
+        if (fix.Resolved)
+        {
+            Assert.True(double.IsFinite(fix.Lat!.Value) && double.IsFinite(fix.Lon!.Value));
+            Assert.True(double.IsFinite(fix.MajorM) && double.IsFinite(fix.MinorM) && double.IsFinite(fix.AzimuthDeg));
+            Assert.True(DistanceM(fix.Lat!.Value, fix.Lon!.Value, 44.312, 26.2) < 1_000);
+        }
+        else
+        {
+            Assert.NotNull(fix.Reason);
+            Assert.Null(fix.Lat);
+        }
+    }
+
+    [Fact]
+    public void A_site_south_of_the_track_is_fixed_within_a_kilometre()
+    {
+        var fix = BearingFix.Solve(Observe(43.9, 26.2, 200, noiseDeg: 1.5, seed: 1));
+        Assert.True(fix.Resolved, fix.Reason);
+        Assert.True(DistanceM(fix.Lat!.Value, fix.Lon!.Value, 43.9, 26.2) < 1_000);
+    }
+
+    [Fact]
     public void Too_few_bearings_is_unresolved()
     {
         var fix = BearingFix.Solve(Observe(44.5, 26.2, 5));
