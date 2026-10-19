@@ -43,7 +43,7 @@ export const EmitterTable = memo(function EmitterTable({ rows, persistenceMs }: 
                 </td>
                 <td>{t.threatClass}</td>
                 <td className={t.lethality === 'Critical' ? 'threat-critical' : undefined}>{LETHALITY_LABEL[t.lethality]}</td>
-                <td>{t.locked ? <span className="threat-critical">Tracking</span> : <span className="muted">Search</span>}</td>
+                <td>{t.locked ? <span className="chip chip--lock">Tracking</span> : <span className="muted">Search</span>}</td>
                 <td className="num">{e.emitterId}</td>
                 <td className="num">{e.frequencyMHz.toFixed(0)}</td>
                 <td className="num">{e.priUs.toFixed(0)}</td>
