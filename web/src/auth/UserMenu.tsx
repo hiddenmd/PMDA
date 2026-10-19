@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import type { DockviewApi } from 'dockview-react'
-import { KeyRound, LogOut, Users } from 'lucide-react'
+import { KeyRound, LogOut, Users } from '../components/icons'
 import { useState } from 'react'
 import { changePassword, errorMessage } from '../api/auth'
 import { Dialog } from '../components/Dialog'

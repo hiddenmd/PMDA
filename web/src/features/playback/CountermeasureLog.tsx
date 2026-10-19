@@ -1,4 +1,4 @@
-import { Flame, Sparkles } from 'lucide-react'
+import { Flame, Sparkles } from '../../components/icons'
 import { memo } from 'react'
 import { formatElapsed } from '../../lib/format'
 import type { CountermeasureEntry } from './playbackView'

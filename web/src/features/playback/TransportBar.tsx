@@ -1,4 +1,4 @@
-import { Loader2, Pause, Play, RotateCcw, SkipBack, SkipForward } from 'lucide-react'
+import { Loader2, Pause, Play, RotateCcw, SkipBack, SkipForward } from '../../components/icons'
 import type { ReactNode } from 'react'
 import { formatElapsed, formatHms, formatUtcClock } from '../../lib/format'
 import type { TransportStatus } from '../../machines/playbackMachine'

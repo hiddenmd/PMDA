@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Crosshair, Maximize } from 'lucide-react'
+import { Crosshair, Maximize } from '../../components/icons'
 import { useRef, useState } from 'react'
 import { getMapSettings, getTrack } from '../../api/playback'
 import { useAlerts } from '../../features/alerts/useAlerts'

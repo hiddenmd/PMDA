@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, ShieldCheck } from 'lucide-react'
+import { AlertCircle, ShieldCheck } from '../components/icons'
 import { useState, type FormEvent } from 'react'
 import { errorMessage, setupAdministrator } from '../api/auth'
 import { authKeys } from './authContext'

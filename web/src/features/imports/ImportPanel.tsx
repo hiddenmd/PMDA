@@ -1,5 +1,5 @@
 import { useSelector } from '@xstate/react'
-import { AlertCircle, CheckCircle2, Clock, Copy, FolderOpen, Loader2, RotateCcw, UploadCloud, X, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, Copy, FolderOpen, Loader2, RotateCcw, UploadCloud, X, XCircle } from '../../components/icons'
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { useImportBatch, type ImportBatch } from '../../hooks/useImportBatch'
 import { formatBytes, formatCompact, formatNumber } from '../../lib/format'

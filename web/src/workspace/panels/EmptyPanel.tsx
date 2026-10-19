@@ -1,4 +1,4 @@
-import { Radar } from 'lucide-react'
+import { Radar } from '../../components/icons'
 import type { ReactNode } from 'react'
 
 export function EmptyPanel({ title = 'No flight selected', children }: { title?: string; children?: ReactNode }) {

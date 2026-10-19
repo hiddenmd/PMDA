@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Pencil, ShieldCheck, UserPlus } from 'lucide-react'
+import { KeyRound, Pencil, ShieldCheck, UserPlus } from '../../components/icons'
 import { useState } from 'react'
 import { createUser, errorMessage, listUsers, resetUserPassword, updateUser, type AppUser, type UserRole } from '../../api/auth'
 import { useAuth } from '../../auth/authContext'

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronLeft, ChevronRight, MoreHorizontal, Search, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, MoreHorizontal, Search, SlidersHorizontal, Trash2, X } from '../../components/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { deleteAllFlights, deleteFlights } from '../../api/flights'
 import type { FlightSummary } from '../../api/types'

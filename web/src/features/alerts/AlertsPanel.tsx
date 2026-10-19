@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Crosshair, OctagonAlert, Radar, TriangleAlert, Volume2 } from 'lucide-react'
+import { Crosshair, OctagonAlert, Radar, TriangleAlert, Volume2 } from '../../components/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Alert } from '../../api/types'
 import { formatElapsed, formatNumber, formatUtcClock } from '../../lib/format'

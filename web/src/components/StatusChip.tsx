@@ -1,8 +1,8 @@
-import { CheckCircle2, CircleDashed, Trash2, XCircle, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, CircleDashed, Trash2, XCircle, type AppIcon } from './icons'
 import type { FlightStatus } from '../api/types'
 
 /** One icon per status; a new status fails to compile until it has one. */
-const icons: Record<FlightStatus, LucideIcon> = { Completed: CheckCircle2, Importing: CircleDashed, Failed: XCircle, Deleting: Trash2 }
+const icons: Record<FlightStatus, AppIcon> = { Completed: CheckCircle2, Importing: CircleDashed, Failed: XCircle, Deleting: Trash2 }
 
 /** Flight status with an icon and text, never colour alone. */
 export function StatusChip({ status }: { status: FlightStatus }) {

@@ -1,5 +1,5 @@
 import type { DockviewApi } from 'dockview-react'
-import { Check, LayoutTemplate, PanelsTopLeft, Plus, Radar, RotateCcw, Save, Settings2, Trash2 } from 'lucide-react'
+import { Check, LayoutTemplate, PanelsTopLeft, Plus, Radar, RotateCcw, Save, Settings2, Trash2 } from '../components/icons'
 import { useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/authContext'
 import { ConnectionBadge } from '../components/ConnectionBadge'

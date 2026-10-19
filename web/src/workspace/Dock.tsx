@@ -1,6 +1,6 @@
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type DockviewTheme, type IDockviewHeaderActionsProps, type IDockviewPanelProps } from 'dockview-react'
 import 'dockview-react/dist/styles/dockview.css'
-import { ExternalLink, Maximize2, Minimize2, PictureInPicture2 } from 'lucide-react'
+import { ExternalLink, Maximize2, Minimize2, PictureInPicture2 } from '../components/icons'
 import { useEffect, useRef, type FunctionComponent } from 'react'
 import { GraphPanel } from '../features/graphs/GraphPanel'
 import { AlertsPanel } from '../features/alerts/AlertsPanel'

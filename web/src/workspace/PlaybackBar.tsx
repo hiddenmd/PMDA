@@ -1,4 +1,4 @@
-import { AlertTriangle, Volume2, VolumeX } from 'lucide-react'
+import { AlertTriangle, Volume2, VolumeX } from '../components/icons'
 import { useAlerts, useAlertSound, useSoundPreference } from '../features/alerts/useAlerts'
 import { Timeline } from '../features/playback/Timeline'
 import { TransportBar } from '../features/playback/TransportBar'

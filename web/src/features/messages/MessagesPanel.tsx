@@ -1,6 +1,6 @@
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronLeft, ChevronRight, Crosshair } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Crosshair } from '../../components/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getEvents } from '../../api/dataViews'
 import type { EventType } from '../../api/types'

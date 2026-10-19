@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Info } from 'lucide-react'
+import { Info } from '../../components/icons'
 import { useMemo, useRef } from 'react'
 import { getTrack } from '../../api/playback'
 import { deriveAttitude, type Attitude } from '../../features/attitude/attitude'

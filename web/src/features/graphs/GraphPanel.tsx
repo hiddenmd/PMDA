@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { IDockviewPanelProps } from 'dockview-react'
-import { RotateCcw } from 'lucide-react'
+import { RotateCcw } from '../../components/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type uPlot from 'uplot'
 import { getParameterSeries, getProfileSeries, getRateSeries, getScatterSeries } from '../../api/dataViews'
