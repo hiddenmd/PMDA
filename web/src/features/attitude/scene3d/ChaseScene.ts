@@ -49,8 +49,15 @@ export async function createChaseScene(
   } catch {
     return null
   }
-  const gltf = await new GLTFLoader().loadAsync(MODEL_URL[platform])
-  return new Scene(renderer, gltf.scene, reducedMotion)
+  try {
+    const gltf = await new GLTFLoader().loadAsync(MODEL_URL[platform])
+    return new Scene(renderer, gltf.scene, reducedMotion)
+  } catch {
+    // Free the GL context so the caller's 2D fallback does not leak one per failed mount.
+    renderer.forceContextLoss()
+    renderer.dispose()
+    return null
+  }
 }
 
 class Scene implements ChaseScene {
@@ -71,6 +78,7 @@ class Scene implements ChaseScene {
   private heading = 0
   private camOffset: THREE.Vector3 | null = null
   private colors: SceneColors = { background: '#080b12', grid: '#22324d', gridMinor: '#1a2436', accent: '#4cc3ff' }
+  private gridOffset = { x: 0, z: 0 }
   private lastNow = 0
   private dirty = true
 
@@ -121,8 +129,9 @@ class Scene implements ChaseScene {
     if (start && here && this.grid) {
       const [x, , z] = toLocal(start, here)
       const wrap = (v: number) => ((v % GRID_CELL) + GRID_CELL) % GRID_CELL
-      this.grid.position.x = -wrap(x)
-      this.grid.position.z = -wrap(z)
+      this.gridOffset = { x: -wrap(x), z: -wrap(z) }
+      this.grid.position.x = this.gridOffset.x
+      this.grid.position.z = this.gridOffset.z
     }
     const pts = trailPoints(track, ms, 60_000, TRAIL_MAX)
     const pos = this.trailGeometry.getAttribute('position') as THREE.BufferAttribute
@@ -193,6 +202,7 @@ class Scene implements ChaseScene {
     for (const m of [this.body, this.glass, this.edges, this.trailMaterial]) m.dispose()
     this.grid?.dispose()
     this.renderer.dispose()
+    this.renderer.forceContextLoss()
   }
 
   private applyColors() {
@@ -206,7 +216,7 @@ class Scene implements ChaseScene {
       this.grid.dispose()
     }
     this.grid = new THREE.GridHelper(GRID_SIZE, GRID_SIZE / GRID_CELL, this.colors.grid, this.colors.gridMinor)
-    this.grid.position.y = -6
+    this.grid.position.set(this.gridOffset.x, -6, this.gridOffset.z)
     this.scene.add(this.grid)
     this.paintTrail(this.trailGeometry.drawRange.count)
   }
