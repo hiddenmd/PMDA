@@ -954,7 +954,8 @@
     left: auto;
     bottom: auto;
     justify-self: center;
-    width: min(70cqw, calc(220px * var(--ui-scale)));
+    /* Capped by height too, so the 3D scene keeps most of a short panel. */
+    width: min(70cqw, 38cqh, calc(220px * var(--ui-scale)));
     margin: var(--space-md) 0;
   }
 }
