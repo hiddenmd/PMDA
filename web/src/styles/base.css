@@ -102,7 +102,8 @@ p {
 .dockview-theme-pmda .dv-groupview::after,
 .menu::after,
 .dialog::after,
-.login__card::after {
+.login__card::after,
+.attitude-view__adi-card::after {
   content: '';
   position: absolute;
   inset: var(--hud-bracket-inset, -1px);

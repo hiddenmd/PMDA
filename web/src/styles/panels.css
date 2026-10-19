@@ -881,20 +881,76 @@
   padding: var(--space-sm) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
 }
+/* 3D scene fills the stage; heading tape across the top; glass ADI card overlaid on the left. */
 .attitude-view {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(220px * var(--ui-scale)), 1fr));
-  grid-auto-rows: minmax(calc(220px * var(--ui-scale)), 1fr);
-  gap: var(--space-md);
-  min-height: 0;
-  padding: var(--space-md);
-  overflow: auto;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  min-height: calc(220px * var(--ui-scale));
+  container-type: size;
+  overflow: hidden;
 }
-.attitude-view canvas {
+.attitude-view__scene {
+  grid-area: 1 / 1;
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  cursor: grab;
+  touch-action: none;
+}
+.attitude-view__scene:active {
+  cursor: grabbing;
+}
+.attitude-view__tape {
+  position: absolute;
+  top: var(--space-md);
+  left: 50%;
+  width: min(60%, calc(420px * var(--ui-scale)));
+  height: calc(30px * var(--ui-scale));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.attitude-view__adi-card {
+  position: absolute;
+  left: var(--space-lg);
+  bottom: var(--space-lg);
+  width: min(40cqh, 45cqw);
+  aspect-ratio: 1;
+  padding: var(--space-sm);
+  background: color-mix(in srgb, var(--color-card) 72%, transparent);
+  border: 1px solid var(--color-border-strong);
+  --hud-bracket: var(--color-primary);
+  --hud-bracket-size: 8px;
+  --hud-bracket-inset: -1px;
+  pointer-events: none;
+}
+.attitude-view__adi {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.attitude-view__toolbar {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+/* Narrow panels: the ADI sits below the scene instead of covering it. */
+@container (max-width: 420px) {
+  .attitude-view {
+    grid-template: minmax(0, 1fr) auto / minmax(0, 1fr);
+  }
+  .attitude-view__adi-card {
+    position: relative;
+    grid-area: 2 / 1;
+    left: auto;
+    bottom: auto;
+    justify-self: center;
+    width: min(70cqw, calc(220px * var(--ui-scale)));
+    margin: var(--space-md) 0;
+  }
 }
 .attitude-panel > .readout {
   padding: var(--space-md) var(--space-lg);

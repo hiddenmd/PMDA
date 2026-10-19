@@ -13,6 +13,8 @@ export interface AdiColors {
   text: string
   muted: string
   bezel: string
+  /** Tape background (the theme's panel colour; drawn at 55% opacity). */
+  panel: string
 }
 
 const RAD = Math.PI / 180
@@ -156,9 +158,10 @@ export function drawHeadingTape(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.beginPath()
   ctx.rect(x, y, width, height)
   ctx.clip()
-  ctx.fillStyle = 'rgba(8, 11, 18, 0.55)'
+  ctx.globalAlpha = 0.55
+  ctx.fillStyle = c.panel
   ctx.fillRect(x, y, width, height)
-  ctx.fillStyle = c.text
+  ctx.globalAlpha = 1
   ctx.strokeStyle = c.muted
   ctx.fillStyle = c.text
   ctx.lineWidth = 1

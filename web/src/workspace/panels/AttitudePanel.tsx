@@ -55,7 +55,7 @@ function AttitudeDisplay({ flightId, actor, durationMs }: { flightId: string; ac
       ) : series.t.length < 2 ? (
         <div className="empty">This flight has no navigation data, so attitude cannot be shown.</div>
       ) : (
-        <AttitudeView actor={actor} series={series} platform={profile?.platform ?? 'FixedWing'} readout={readout} />
+        <AttitudeView actor={actor} series={series} track={track.data!} platform={profile?.platform ?? 'FixedWing'} readout={readout} />
       )}
 
       <dl className="readout readout--attitude" aria-label="Attitude and rates at the playhead">
