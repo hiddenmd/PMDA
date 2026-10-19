@@ -1,31 +1,34 @@
 /*
- * Design tokens — design-system/pmda/MASTER.md, "PMDA Decisions v2".
- * Graphite + Blue, dark by default. Everything size-related scales with --ui-scale (UI size setting).
+ * Design tokens — design-system/pmda/MASTER.md, "PMDA Decisions v3" (Tactical HUD).
+ * Deep navy + cyan, dark by default, daylight variant. Size-related values scale with --ui-scale.
+ * Contrast pairs are guarded by tokens.test.ts.
  */
 
 :root {
   --ui-scale: 1;
 
   /* Colour: dark (default) */
-  --color-background: #0b0b10;
-  --color-card: #16161c;
-  --color-muted: #1e1e25;
-  --color-hover: #25252e;
-  --color-border: #2a2a33;
-  --color-border-strong: #3a3a45;
-  --color-foreground: #e4e4e7;
-  --color-muted-foreground: #a1a1aa;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-on-primary: #ffffff;
-  --color-selection: rgb(37 99 235 / 0.18);
-  --color-link: #60a5fa;
-  --color-ring: #60a5fa;
-  --color-accent: #fbbf24;
-  --color-on-accent: #0b0b10;
+  --color-background: #080b12;
+  --color-card: #0a0f19;
+  --color-panel-header: #0d1524;
+  --color-muted: #0f1726;
+  --color-hover: #14203a;
+  --color-border: #1a2436;
+  --color-border-strong: #22324d;
+  --color-foreground: #cfd8e6;
+  --color-muted-foreground: #8fa3bf;
+  --color-primary: #4cc3ff;
+  --color-primary-hover: #7dd3ff;
+  --color-on-primary: #080b12;
+  --color-selection: rgb(76 195 255 / 0.1);
+  --color-link: #4cc3ff;
+  --color-ring: #4cc3ff;
+  --color-accent: #ffc247;
+  --color-on-accent: #080b12;
   --color-success: #4ade80;
-  --color-destructive: #f87171;
-  --color-destructive-solid: #dc2626;
+  --color-destructive: #ff5a5a;
+  --color-destructive-solid: #ff5a5a;
+  --color-on-destructive: #080b12;
 
   /* Data series (also distinguished by symbol/label, never colour alone) */
   --color-series-emitter: #fbbf24;
@@ -36,12 +39,17 @@
   --color-series-6: #f472b6;
 
   /* Cockpit alerts: missile red, lock/countermeasure orange (marked by shape too) */
-  --color-alert-critical: #ff4d4d;
+  --color-alert-critical: #ff5a5a;
   --color-alert-warning: #fb923c;
 
-  --shadow-popover: 0 8px 28px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.35);
+  --shadow-popover: 0 10px 32px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
 
-  /* Type: IBM Plex, bundled */
+  /* HUD: bracket colour (dimmed in unfocused dock groups) and glow radius for live elements */
+  --hud-bracket: var(--color-primary);
+  --hud-glow: 6px;
+
+  /* Type: Saira Condensed (labels), IBM Plex Sans (body), IBM Plex Mono (numbers); all bundled */
+  --font-display: 'Saira Condensed', 'Arial Narrow', system-ui, sans-serif;
   --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
   --fs-xs: calc(11px * var(--ui-scale));
@@ -49,12 +57,15 @@
   --fs-md: calc(13px * var(--ui-scale));
   --fs-lg: calc(15px * var(--ui-scale));
   --fs-xl: calc(20px * var(--ui-scale));
+  /* Saira Condensed runs small: display labels sit 1 px above the Plex size they replace */
+  --fs-label: calc(12px * var(--ui-scale));
   --lh-dense: 1.35;
   --lh-body: 1.5;
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
   --tracking-label: 0.06em;
+  --tracking-display: 0.1em;
 
   /* Space, shape, controls */
   --space-xs: calc(2px * var(--ui-scale));
@@ -64,8 +75,8 @@
   --space-xl: calc(16px * var(--ui-scale));
   --space-2xl: calc(24px * var(--ui-scale));
   --space-3xl: calc(32px * var(--ui-scale));
-  --radius-control: 4px;
-  --radius-panel: 6px;
+  --radius-control: 2px;
+  --radius-panel: 2px;
   --control-height: calc(30px * var(--ui-scale));
   --control-height-compact: calc(26px * var(--ui-scale));
   --header-height: calc(40px * var(--ui-scale));
@@ -75,35 +86,45 @@
 }
 
 :root[data-theme='light'] {
-  --color-background: #f4f4f5;
+  --color-background: #eef2f7;
   --color-card: #ffffff;
-  --color-muted: #eeeff2;
-  --color-hover: #e4e4e7;
-  --color-border: #e4e4e7;
-  --color-border-strong: #d4d4d8;
-  --color-foreground: #18181b;
-  --color-muted-foreground: #52525b;
-  --color-primary: #1d4ed8;
-  --color-primary-hover: #1e40af;
-  --color-selection: rgb(29 78 216 / 0.1);
-  --color-link: #1d4ed8;
-  --color-ring: #1d4ed8;
+  --color-panel-header: #e7edf5;
+  --color-muted: #e3e9f1;
+  --color-hover: #d9e3ef;
+  --color-border: #c9d3e0;
+  --color-border-strong: #9fb0c6;
+  --color-foreground: #0b1a33;
+  --color-muted-foreground: #475a75;
+  --color-primary: #0369a1;
+  --color-primary-hover: #075985;
+  --color-on-primary: #ffffff;
+  --color-selection: rgb(3 105 161 / 0.1);
+  --color-link: #0369a1;
+  --color-ring: #0369a1;
   --color-accent: #92400e;
   --color-on-accent: #ffffff;
   --color-success: #166534;
   --color-destructive: #b91c1c;
   --color-destructive-solid: #b91c1c;
+  --color-on-destructive: #ffffff;
   --color-series-emitter: #b45309;
   --color-series-countermeasure: #b91c1c;
   --color-series-navigation: #1d4ed8;
   --color-series-4: #6d28d9;
   --color-series-5: #047857;
   --color-series-6: #be185d;
-  --color-alert-critical: #dc2626;
-  --color-alert-warning: #c2410c;
-  --shadow-popover: 0 8px 28px rgb(24 24 27 / 0.14), 0 2px 6px rgb(24 24 27 / 0.08);
+  --color-alert-critical: #b91c1c;
+  --color-alert-warning: #9a3412;
+  --shadow-popover: 0 8px 28px rgb(11 26 51 / 0.14), 0 2px 6px rgb(11 26 51 / 0.08);
+  --hud-glow: 0px;
 
   color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --hud-glow: 0px;
+  }
 }
 
 :root[data-ui-size='compact'] {

@@ -28,19 +28,20 @@ h4 {
   margin: 0;
   line-height: var(--lh-dense);
 }
-h1 {
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-}
+h1,
 h2 {
+  font-family: var(--font-display);
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
 }
 h3,
 .label {
-  font-size: var(--fs-xs);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
-  letter-spacing: var(--tracking-label);
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
   color: var(--color-muted-foreground);
 }
@@ -92,4 +93,26 @@ p {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ---------- HUD frame: corner brackets (top-left, bottom-right), defined once ---------- */
+/* The framed element must be positioned. Override per element: --hud-bracket (colour),
+   --hud-bracket-size (arm length, default 8px), --hud-bracket-inset (default -1px). */
+
+.hud-frame::after,
+.dockview-theme-pmda .dv-groupview::after,
+.menu::after,
+.dialog::after,
+.login__card::after {
+  content: '';
+  position: absolute;
+  inset: var(--hud-bracket-inset, -1px);
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--hud-bracket), var(--hud-bracket)) top left / var(--hud-bracket-size, 8px) 2px,
+    linear-gradient(var(--hud-bracket), var(--hud-bracket)) top left / 2px var(--hud-bracket-size, 8px),
+    linear-gradient(var(--hud-bracket), var(--hud-bracket)) bottom right / var(--hud-bracket-size, 8px) 2px,
+    linear-gradient(var(--hud-bracket), var(--hud-bracket)) bottom right / 2px var(--hud-bracket-size, 8px);
+  background-repeat: no-repeat;
 }
