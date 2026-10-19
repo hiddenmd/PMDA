@@ -53,7 +53,7 @@ const FORMAT: Record<keyof Attitude, (v: number) => string> = {
  */
 export function AttitudeView({ actor, series, track, platform, readout }: AttitudeViewProps) {
   const stageRef = useRef<HTMLDivElement>(null)
-  const sceneCanvasRef = useRef<HTMLCanvasElement>(null)
+  const sceneLayerRef = useRef<HTMLDivElement>(null)
   const adiRef = useRef<HTMLCanvasElement>(null)
   const tapeRef = useRef<HTMLCanvasElement>(null)
   const sceneRef = useRef<ChaseScene | null>(null)
@@ -68,12 +68,22 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
   }, [preset])
 
   useEffect(() => {
-    const sceneCanvas = sceneCanvasRef.current!
+    const sceneLayer = sceneLayerRef.current!
+    // The scene owns its canvas: a canvas that took a WebGL context cannot give a 2D one, and a
+    // disposed scene's context loss must never reach a later scene, so each run makes its own.
+    const newSceneCanvas = () => {
+      const canvas = document.createElement('canvas')
+      canvas.setAttribute('aria-hidden', 'true')
+      canvas.className = 'attitude-view__scene-canvas'
+      sceneLayer.appendChild(canvas)
+      return canvas
+    }
     const adi = adiRef.current!
     const tape = tapeRef.current!
     const adiCtx = adi.getContext('2d')
     const tapeCtx = tape.getContext('2d')
     if (!adiCtx || !tapeCtx) return
+    let sceneCanvas = newSceneCanvas()
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     let disposed = false
     let fallbackCtx: CanvasRenderingContext2D | null = null
@@ -154,8 +164,11 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
     }
 
     void import('./scene3d/ChaseScene')
-      .then(({ createChaseScene }) => createChaseScene(sceneCanvas, platform, reducedMotion))
-      .catch(() => null)
+      .then(({ createChaseScene }) => (disposed ? null : createChaseScene(sceneCanvas, platform, reducedMotion)))
+      .catch((error: unknown) => {
+        console.warn('3D view unavailable, using the 2D view', error)
+        return null
+      })
       .then((scene) => {
         if (disposed) return scene?.dispose()
         if (scene) {
@@ -163,6 +176,10 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
           scene.setColors(sceneColors())
           scene.setPreset(presetRef.current)
         } else {
+          // The first canvas may already hold a WebGL context; take a fresh one for 2D.
+          size.delete(sceneCanvas)
+          sceneCanvas.remove()
+          sceneCanvas = newSceneCanvas()
           fallbackCtx = sceneCanvas.getContext('2d')
         }
         resize()
@@ -170,7 +187,7 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
 
     resize()
     const resizeObserver = new ResizeObserver(resize)
-    ;[adi, tape, sceneCanvas].forEach((c) => resizeObserver.observe(c))
+    ;[adi, tape, sceneLayer].forEach((c) => resizeObserver.observe(c))
     const visibility = new IntersectionObserver(([entry]) => {
       visible = entry?.isIntersecting ?? true
       if (visible) kick()
@@ -188,7 +205,7 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
     let drag: { x: number; y: number } | null = null
     const down = (e: PointerEvent) => {
       drag = { x: e.clientX, y: e.clientY }
-      sceneCanvas.setPointerCapture?.(e.pointerId)
+      sceneLayer.setPointerCapture?.(e.pointerId)
     }
     const move = (e: PointerEvent) => {
       if (!drag || !sceneRef.current) return
@@ -201,11 +218,11 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
       sceneRef.current?.resetView()
       kick()
     }
-    sceneCanvas.addEventListener('pointerdown', down)
-    sceneCanvas.addEventListener('pointermove', move)
-    sceneCanvas.addEventListener('pointerup', up)
-    sceneCanvas.addEventListener('pointercancel', up)
-    sceneCanvas.addEventListener('dblclick', reset)
+    sceneLayer.addEventListener('pointerdown', down)
+    sceneLayer.addEventListener('pointermove', move)
+    sceneLayer.addEventListener('pointerup', up)
+    sceneLayer.addEventListener('pointercancel', up)
+    sceneLayer.addEventListener('dblclick', reset)
 
     return () => {
       disposed = true
@@ -214,20 +231,21 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
       visibility.disconnect()
       themeObserver.disconnect()
       document.removeEventListener('visibilitychange', onPageVisibility)
-      sceneCanvas.removeEventListener('pointerdown', down)
-      sceneCanvas.removeEventListener('pointermove', move)
-      sceneCanvas.removeEventListener('pointerup', up)
-      sceneCanvas.removeEventListener('pointercancel', up)
-      sceneCanvas.removeEventListener('dblclick', reset)
+      sceneLayer.removeEventListener('pointerdown', down)
+      sceneLayer.removeEventListener('pointermove', move)
+      sceneLayer.removeEventListener('pointerup', up)
+      sceneLayer.removeEventListener('pointercancel', up)
+      sceneLayer.removeEventListener('dblclick', reset)
       sceneRef.current?.dispose()
       sceneRef.current = null
+      sceneCanvas.remove()
       kickRef.current = () => {}
     }
   }, [actor, series, track, platform, readout])
 
   return (
     <div className="attitude-view" ref={stageRef}>
-      <canvas ref={sceneCanvasRef} className="attitude-view__scene" role="img" aria-label="Aircraft seen from behind, pitched and banked as at the playhead, with its recent flight path" />
+      <div ref={sceneLayerRef} className="attitude-view__scene" role="img" aria-label="Aircraft seen from behind, pitched and banked as at the playhead, with its recent flight path" />
       <canvas ref={tapeRef} className="attitude-view__tape" role="img" aria-label="Heading tape at the playhead" />
       <div className="attitude-view__adi-card">
         <canvas ref={adiRef} className="attitude-view__adi" role="img" aria-label="Attitude indicator: pitch and bank at the playhead" />
