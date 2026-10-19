@@ -58,5 +58,11 @@ export function cameraOffset(preset: CameraPreset, headingDeg: number, orbit: { 
   return new Vector3(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)).multiplyScalar(p.d)
 }
 
+/** The range the accumulated orbit pitch may take so the effective elevation stays within [-10, 89]. */
+export function orbitPitchRange(preset: CameraPreset): [number, number] {
+  const { el } = PRESETS[preset]
+  return [-10 - el, 89 - el]
+}
+
 /** Fraction of the remaining distance to cover this frame for exponential damping. */
 export const damp = (rateBase: number, dtSec: number) => 1 - rateBase ** dtSec

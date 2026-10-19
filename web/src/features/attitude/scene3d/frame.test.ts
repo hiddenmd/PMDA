@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import type { FlightTrack } from '../../../api/types'
-import { attitudeQuaternion, cameraOffset, damp, toLocal, trailPoints } from './frame'
+import { attitudeQuaternion, cameraOffset, damp, orbitPitchRange, toLocal, trailPoints } from './frame'
 
 const forward = (q: ReturnType<typeof attitudeQuaternion>) => new Vector3(0, 0, -1).applyQuaternion(q)
 const rightWing = (q: ReturnType<typeof attitudeQuaternion>) => new Vector3(1, 0, 0).applyQuaternion(q)
@@ -100,6 +100,18 @@ describe('cameraOffset', () => {
 
   it('clamps orbit elevation', () => {
     expect(cameraOffset('chase', 0, { yaw: 0, pitch: -90 }).y).toBeCloseTo(-Math.hypot(16, 7.4, 39) * Math.sin((10 * Math.PI) / 180), 1)
+  })
+})
+
+describe('orbitPitchRange', () => {
+  it('keeps the effective elevation within [-10, 89] per preset', () => {
+    expect(orbitPitchRange('top')).toEqual([-99, 0])
+    expect(orbitPitchRange('side')).toEqual([-10, 89])
+  })
+
+  it('clamps the upper elevation at 89 degrees', () => {
+    const d = Math.hypot(16, 7.4, 39)
+    expect(cameraOffset('chase', 0, { yaw: 0, pitch: 200 }).y).toBeCloseTo(d * Math.sin((89 * Math.PI) / 180), 1)
   })
 })
 

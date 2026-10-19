@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { FlightTrack } from '../../../api/types'
 import type { Attitude } from '../attitude'
-import { positionAt } from '../../map/track'
-import { attitudeQuaternion, cameraOffset, damp, toLocal, trailPoints, type CameraPreset } from './frame'
+import { positionAt, type TrackPoint } from '../../map/track'
+import { attitudeQuaternion, cameraOffset, damp, orbitPitchRange, toLocal, trailPoints, type CameraPreset } from './frame'
 
 export interface SceneColors {
   background: string
@@ -35,6 +35,8 @@ const TAIL_REV_S = 30
 const DAMPING_BASE = 0.05
 const GRID_SIZE = 600
 const GRID_CELL = 10
+const GRID_Y = -6
+const GRID_STEP_MAX_M = 5000
 
 /** A chase view of the aircraft at the playhead; null where WebGL is unavailable (the caller falls back to 2D). */
 export async function createChaseScene(
@@ -70,7 +72,7 @@ class Scene implements ChaseScene {
   private rim = new THREE.DirectionalLight(0xffffff, 2.2)
   private grid: THREE.GridHelper | null = null
   private trailGeometry = new THREE.BufferGeometry()
-  private trailMaterial = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9 })
+  private trailMaterial = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, fog: false })
   private mainRotor: THREE.Object3D | null
   private tailRotor: THREE.Object3D | null
   private preset: CameraPreset = 'chase'
@@ -79,6 +81,7 @@ class Scene implements ChaseScene {
   private camOffset: THREE.Vector3 | null = null
   private colors: SceneColors = { background: '#080b12', grid: '#22324d', gridMinor: '#1a2436', accent: '#4cc3ff' }
   private gridOffset = { x: 0, z: 0 }
+  private prevPosition: TrackPoint | null = null
   private lastNow = 0
   private dirty = true
 
@@ -124,14 +127,18 @@ class Scene implements ChaseScene {
     this.heading = attitude.heading
     // The aircraft stays at the origin; the trail and grid move around it (no float drift on long flights).
     // The grid shifts by the distance flown modulo one cell, so the ground visibly passes underneath.
-    const start = positionAt(track, track.t[0] ?? 0)
+    // Incremental, so the east-west scale stays local on long flights; a seek (big step) keeps the phase.
     const here = positionAt(track, ms)
-    if (start && here && this.grid) {
-      const [x, , z] = toLocal(start, here)
-      const wrap = (v: number) => ((v % GRID_CELL) + GRID_CELL) % GRID_CELL
-      this.gridOffset = { x: -wrap(x), z: -wrap(z) }
-      this.grid.position.x = this.gridOffset.x
-      this.grid.position.z = this.gridOffset.z
+    if (here) {
+      if (this.prevPosition) {
+        const [x, , z] = toLocal(this.prevPosition, here)
+        if (Math.hypot(x, z) < GRID_STEP_MAX_M) {
+          const wrap = (v: number) => ((v % GRID_CELL) + GRID_CELL) % GRID_CELL
+          this.gridOffset = { x: wrap(this.gridOffset.x + x), z: wrap(this.gridOffset.z + z) }
+        }
+      }
+      this.prevPosition = here
+      if (this.grid) this.grid.position.set(-this.gridOffset.x, GRID_Y, -this.gridOffset.z)
     }
     const pts = trailPoints(track, ms, 60_000, TRAIL_MAX)
     const pos = this.trailGeometry.getAttribute('position') as THREE.BufferAttribute
@@ -150,7 +157,8 @@ class Scene implements ChaseScene {
   }
 
   orbitBy(dYawDeg: number, dPitchDeg: number) {
-    this.orbit = { yaw: this.orbit.yaw + dYawDeg, pitch: Math.max(-99, Math.min(99, this.orbit.pitch + dPitchDeg)) }
+    const [lo, hi] = orbitPitchRange(this.preset)
+    this.orbit = { yaw: this.orbit.yaw + dYawDeg, pitch: Math.max(lo, Math.min(hi, this.orbit.pitch + dPitchDeg)) }
     this.dirty = true
   }
 
@@ -187,7 +195,6 @@ class Scene implements ChaseScene {
     const settling = this.camOffset.distanceToSquared(want) > 1e-4
     if (!this.dirty && !settling && !spinning) return false
     this.camera.up.set(0, 1, 0)
-    if (this.preset === 'top' && this.orbit.pitch === 0) this.camera.up.set(0, 0, -1) // north-up
     this.camera.position.copy(this.camOffset)
     this.camera.lookAt(0, 0.5, 0)
     this.renderer.render(this.scene, this.camera)
@@ -208,15 +215,15 @@ class Scene implements ChaseScene {
   private applyColors() {
     const bg = new THREE.Color(this.colors.background)
     this.scene.background = bg
-    this.scene.fog = new THREE.Fog(bg, 40, 180)
+    this.scene.fog = new THREE.Fog(bg, 70, 320)
     this.edges.color.set(this.colors.accent)
     this.rim.color.set(this.colors.accent)
     if (this.grid) {
       this.scene.remove(this.grid)
       this.grid.dispose()
     }
-    this.grid = new THREE.GridHelper(GRID_SIZE, GRID_SIZE / GRID_CELL, this.colors.grid, this.colors.gridMinor)
-    this.grid.position.set(this.gridOffset.x, -6, this.gridOffset.z)
+    this.grid = new THREE.GridHelper(GRID_SIZE, GRID_SIZE / GRID_CELL, this.colors.gridMinor, this.colors.gridMinor)
+    this.grid.position.set(-this.gridOffset.x, GRID_Y, -this.gridOffset.z)
     this.scene.add(this.grid)
     this.paintTrail(this.trailGeometry.drawRange.count)
   }

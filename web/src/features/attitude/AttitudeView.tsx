@@ -12,6 +12,11 @@ import type { CameraPreset } from './scene3d/frame'
 const INSTRUMENT = { sky: '#3c82c4', skyHigh: '#1f5a94', ground: '#6b4423', groundLow: '#4a2f17', line: '#f4f4f5', symbol: '#fbbf24' }
 const MODEL: Omit<ModelColors, 'grid'> = { body: '#b4bcc8', wing: '#8f99a6', canopy: '#3d6286', rotor: '#a3acb8' }
 const READOUT_EVERY_MS = 100
+const SCENE_LABEL: Record<CameraPreset, string> = {
+  chase: 'Aircraft seen from behind, pitched and banked as at the playhead, with its recent flight path',
+  side: 'Aircraft seen from the right side, pitched and banked as at the playhead, with its recent flight path',
+  top: 'Aircraft seen from above, north up, as at the playhead, with its recent flight path',
+}
 const PRESETS: { id: CameraPreset; label: string }[] = [
   { id: 'chase', label: 'Chase' },
   { id: 'side', label: 'Side' },
@@ -59,6 +64,7 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
   const sceneRef = useRef<ChaseScene | null>(null)
   const [preset, setPreset] = useState<CameraPreset>('chase')
   const presetRef = useRef<CameraPreset>('chase')
+  const sceneLabel = SCENE_LABEL[preset]
   const kickRef = useRef<() => void>(() => {})
 
   useEffect(() => {
@@ -202,18 +208,21 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 
     // Drag to orbit, double-click to reset.
-    let drag: { x: number; y: number } | null = null
+    let drag: { id: number; x: number; y: number } | null = null
     const down = (e: PointerEvent) => {
-      drag = { x: e.clientX, y: e.clientY }
+      if (e.button !== 0) return
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY }
       sceneLayer.setPointerCapture?.(e.pointerId)
     }
     const move = (e: PointerEvent) => {
-      if (!drag || !sceneRef.current) return
+      if (!drag || e.pointerId !== drag.id || !sceneRef.current) return
       sceneRef.current.orbitBy(-(e.clientX - drag.x) * ORBIT_PER_PX, (e.clientY - drag.y) * ORBIT_PER_PX)
-      drag = { x: e.clientX, y: e.clientY }
+      drag = { id: drag.id, x: e.clientX, y: e.clientY }
       kick()
     }
-    const up = () => (drag = null)
+    const up = (e: PointerEvent) => {
+      if (drag && e.pointerId === drag.id) drag = null
+    }
     const reset = () => {
       sceneRef.current?.resetView()
       kick()
@@ -245,7 +254,7 @@ export function AttitudeView({ actor, series, track, platform, readout }: Attitu
 
   return (
     <div className="attitude-view" ref={stageRef}>
-      <div ref={sceneLayerRef} className="attitude-view__scene" role="img" aria-label="Aircraft seen from behind, pitched and banked as at the playhead, with its recent flight path" />
+      <div ref={sceneLayerRef} className="attitude-view__scene" role="img" aria-label={sceneLabel} />
       <canvas ref={tapeRef} className="attitude-view__tape" role="img" aria-label="Heading tape at the playhead" />
       <div className="attitude-view__adi-card">
         <canvas ref={adiRef} className="attitude-view__adi" role="img" aria-label="Attitude indicator: pitch and bank at the playhead" />
