@@ -2,6 +2,8 @@
  * The app's icons: Tabler, 1.5 px stroke by default, exported under the names the app has always used
  * (they came from Lucide). Import icons only from here.
  */
+// Static icon module: exports are factory-made components, so fast refresh of this file does not matter.
+/* oxlint-disable react/only-export-components */
 import {
   IconAdjustmentsHorizontal,
   IconAlertCircle,
