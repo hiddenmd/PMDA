@@ -52,7 +52,7 @@ Dark is the default. The light ("daylight") variant keeps the same roles.
 | `--color-foreground` | `#CFD8E6` | `#0B1A33` | text |
 | `--color-muted-foreground` | `#8FA3BF` | `#475A75` | secondary text |
 | `--color-primary` / `--color-ring` / `--color-link` | `#4CC3FF` | `#0369A1` | actions, selection, focus, live data |
-| `--color-accent` | `#FFC247` | `#92400E` | threats, lock, playhead marker |
+| `--color-accent` | `#FFC247` | `#92400E` | threats, lock (the playhead is cyan, see section 2) |
 | `--color-destructive` / `--color-alert-critical` | `#FF5A5A` | `#B91C1C` | missile, critical, delete |
 | `--color-alert-warning` | `#FB923C` | `#9A3412` | lock / countermeasure |
 | `--color-success` | `#4ADE80` | `#166534` | OK |
@@ -129,8 +129,7 @@ Tabler (`@tabler/icons-react`), 1.5 px stroke, sizes 16 / 18 / 20 (× `--ui-scal
   - Splitters are 1 px `--color-border` and turn cyan on hover. Floating groups get
     `--color-border-strong` and the popover shadow.
 - **Panels:**
-  - The header strip shows the title on the left and controls/counts on the right. Counts are zero-padded
-    mono (`03`).
+  - The header strip shows the title on the left and controls/counts on the right. Counts are mono.
   - One empty/loading/error pattern: icon, one line, optional action.
 - **Tables** (flights, emitters, messages, alerts, users, countermeasures):
   - Condensed uppercase headers; mono numeric cells.
@@ -142,10 +141,10 @@ Tabler (`@tabler/icons-react`), 1.5 px stroke, sizes 16 / 18 / 20 (× `--ui-scal
   - Primary: cyan outline, filled on hover.
   - Destructive: red outline, filled on hover.
   - Ghost: icon/text only, hover background.
-- **RWR scope:**
-  - Transparent background; outer ring solid; inner range rings dashed; ticks every 30°.
-  - Emitter symbols, colours and bezel come from the customer symbology profile and are **not**
-    restyled, because they mirror the real cockpit display.
+- **RWR scope:** the whole display (bezel, phosphor, rings, ticks, emitter symbols and colours) is drawn
+  from the customer symbology profile and is **not** restyled, because it mirrors the real cockpit display.
+  Only the panel around it (frame, readouts) takes the HUD treatment. (Found while planning: rings and ticks
+  are profile data, so `rwrDraw.ts` is not changed.)
 - **Attitude:** sky/ground and aircraft-model colours stay realistic. The frame, readouts and rate tapes
   use HUD tokens.
 - **Graphs (uPlot):**
@@ -158,7 +157,7 @@ Tabler (`@tabler/icons-react`), 1.5 px stroke, sizes 16 / 18 / 20 (× `--ui-scal
   - Scrubber: cyan fill with a glowing playhead; the density strip keeps its colours.
   - Transport buttons are square outlined icons; the active one is filled.
 - **Login / first-run setup:**
-  - A centred bracketed card over a faint static radar-ring SVG motif.
+  - A centred bracketed card over a faint static radar-ring motif (CSS repeating radial gradient).
   - Condensed uppercase title; the "Access is logged" notice in muted text.
 - **Dialogs / menus:** bracketed panels on a `#080B12` 70% backdrop with condensed titles. Behaviour is
   unchanged.
@@ -170,7 +169,6 @@ Tabler (`@tabler/icons-react`), 1.5 px stroke, sizes 16 / 18 / 20 (× `--ui-scal
   - `web/src/main.tsx` (font imports).
   - New `web/src/components/icons.ts`.
   - The 18 files importing `lucide-react`.
-  - `web/src/features/rwr/rwrDraw.ts` (rings, ticks).
   - `web/src/features/graphs/GraphPanel.tsx` (axis fonts).
   - `design-system/pmda/MASTER.md`: a new "PMDA Decisions v3" section replaces v2.
 - **Dependencies:** add `@tabler/icons-react` and `@fontsource/saira-condensed`; remove `lucide-react`.
