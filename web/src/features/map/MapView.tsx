@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type * as GeoJSON from 'geojson'
-import type { GeoJSONSource, Map as MlMap, Marker, RasterDEMSourceSpecification } from 'maplibre-gl'
+import type { GeoJSONSource, Map as MlMap, Marker, MarkerOptions, RasterDEMSourceSpecification } from 'maplibre-gl'
 import type { Alert, EmitterFix, FlightTrack, MapSettings, PlaybackFrame } from '../../api/types'
 import { formatElapsed, formatUtcClock } from '../../lib/format'
 import type { PlaybackActor } from '../../workspace/workspaceContext'
@@ -168,13 +168,20 @@ export function MapView(props: MapViewProps) {
           sweepShown = true
         }
 
-        // HTML markers: start/end, missile alerts, estimated sites, aircraft.
+        // HTML markers: start/end, missile alerts, estimated sites, aircraft. MapLibre labels every marker element
+        // "Map marker", so the real label is set after it.
+        const addMarker = (el: HTMLElement, label: string, at: [number, number], options: MarkerOptions = {}) => {
+          const marker = new maplibregl.Marker({ ...options, element: el }).setLngLat(at).addTo(map!)
+          el.setAttribute('aria-label', label)
+          markers.push(marker)
+          return marker
+        }
         const start = Date.parse(startUtc)
         const endMarker = (i: number, label: string) => {
           const el = document.createElement('div')
           el.className = 'map-endpoint'
           el.title = `${label} ${formatUtcClock(new Date(start + track.t[i]))}`
-          markers.push(new maplibregl.Marker({ element: el }).setLngLat(coords[i]).addTo(map!))
+          addMarker(el, el.title, coords[i])
         }
         if (coords.length > 0) {
           endMarker(0, 'Start')
@@ -190,10 +197,9 @@ export function MapView(props: MapViewProps) {
           el.type = 'button'
           el.className = 'map-alert'
           el.title = `${spec.label} · ${formatElapsed(a.offsetMs)}${a.bearingDeg === null ? '' : ` · ${clockPosition(a.bearingDeg)}`}`
-          el.setAttribute('aria-label', el.title)
           el.innerHTML = '<span aria-hidden="true"></span>'
           el.addEventListener('click', () => actor.send({ type: 'SEEK', positionMs: a.offsetMs }))
-          markers.push(new maplibregl.Marker({ element: el }).setLngLat([p.lon, p.lat]).addTo(map!))
+          addMarker(el, el.title, [p.lon, p.lat])
         }
 
         const resolved = fixes.filter((f) => f.resolved && f.lat !== null && f.lon !== null)
@@ -211,7 +217,7 @@ export function MapView(props: MapViewProps) {
           label.className = 'map-site__label'
           el.append(diamond, label)
           // Anchor the diamond (not the label) on the site; MapLibre owns the marker element's transform.
-          markers.push(new maplibregl.Marker({ element: el, anchor: 'left', offset: [-6, 0] }).setLngLat([f.lon!, f.lat!]).addTo(map!))
+          addMarker(el, `Estimated site, emitter ${f.emitterId}`, [f.lon!, f.lat!], { anchor: 'left', offset: [-6, 0] })
           return { el, label }
         })
 
@@ -230,7 +236,9 @@ export function MapView(props: MapViewProps) {
             if (range) rings.push({ type: 'Feature', properties: { color }, geometry: { type: 'LineString', coordinates: circlePolygon(f.lat!, f.lon!, range) } })
 
             const { el, label } = siteMarkers[i]
-            el.className = `map-site map-site--${lethality.toLowerCase()}`
+            // classList, not className: MapLibre's own marker classes position the element.
+            el.classList.remove('map-site--critical', 'map-site--lethal', 'map-site--nonlethal')
+            el.classList.add('map-site', `map-site--${lethality.toLowerCase()}`)
             label.textContent = `${rule?.code ?? f.emitterId} EST.`
             el.title = [
               `ESTIMATED site — ${rule?.code ?? `Emitter ${f.emitterId}`}${rule ? ` · ${rule.class} · ${rule.lethality}` : ''}`,
@@ -239,6 +247,7 @@ export function MapView(props: MapViewProps) {
             ]
               .filter(Boolean)
               .join('\n')
+            el.setAttribute('aria-label', el.title.replaceAll('\n', '. '))
           })
           source('fix-ellipses')?.setData({ type: 'FeatureCollection', features: ellipses })
           source('fix-rings')?.setData({ type: 'FeatureCollection', features: rings })
@@ -247,8 +256,7 @@ export function MapView(props: MapViewProps) {
         const aircraftEl = document.createElement('div')
         aircraftEl.className = 'map-aircraft'
         aircraftEl.innerHTML = platform === 'Helicopter' ? HELICOPTER : FIXED_WING
-        const aircraft = new maplibregl.Marker({ element: aircraftEl, rotationAlignment: 'map' }).setLngLat(coords[0] ?? [0, 0]).addTo(map)
-        markers.push(aircraft)
+        const aircraft = addMarker(aircraftEl, 'Aircraft', coords[0] ?? [0, 0], { rotationAlignment: 'map' })
 
         const themeObserver = new MutationObserver(() => {
           overlays = false
@@ -271,6 +279,7 @@ export function MapView(props: MapViewProps) {
             flightLayer = null
             if (m.getTerrain()) m.setTerrain(null)
             if (m.getLayer('hillshade')) m.removeLayer('hillshade')
+            m.setCenterClampedToGround(true)
             last.position = -1 // redraw now, so the flat aircraft symbol returns even while paused
             m.easeTo({ pitch: 0, bearing: 0, duration: 600 })
             return
@@ -382,12 +391,15 @@ export function MapView(props: MapViewProps) {
             }),
           })
 
+          // Panning by hand (or in 2D) keeps the camera centre on the ground again.
+          if ((!following || live.current.mode !== '3d') && !m.getCenterClampedToGround()) m.setCenterClampedToGround(true)
           if (following) {
-            // In 3D the camera rides behind the aircraft, but never cuts short the tilt into (or out of) 3D.
+            // In 3D the camera rides behind the aircraft, centred at its altitude rather than on the ground below
+            // (which would put a high aircraft off the top of the view), but never cuts short the tilt into 3D.
             if (live.current.mode === '3d') {
-              if (!m.isEasing()) m.jumpTo({ center: here, bearing: heading ?? m.getBearing() })
-            }
-            else {
+              if (m.getCenterClampedToGround()) m.setCenterClampedToGround(false)
+              if (!m.isEasing()) m.jumpTo({ center: here, bearing: heading ?? m.getBearing(), elevation: p.altM })
+            } else {
               // Re-centre only when the aircraft nears the edge, so tiles are not reloaded every frame.
               const canvas = m.getCanvas()
               const pt = m.project(here)

@@ -8,7 +8,10 @@ import { attitudeQuaternion, toLocal } from '../../attitude/scene3d/frame'
 import { positionAt } from '../track'
 
 const DROP_EVERY_MS = 30_000
+/** At least ×40; zoomed out, larger still so the model stays about AIRCRAFT_PX long on screen. */
 const MODEL_SCALE = 40
+const AIRCRAFT_PX = 36
+const EARTH_CIRCUMFERENCE_M = 40_075_016.686
 const DOME_OPACITY = 0.12
 const DOME_LOCKED_OPACITY = 0.3
 const MODEL_URL = { FixedWing: '/models/jet.glb', Helicopter: '/models/helicopter.glb' } as const
@@ -101,6 +104,7 @@ export function createFlightLayer(opts: { track: FlightTrack; fixes: SiteDome[];
   const aircraft = new THREE.Group()
   aircraft.scale.setScalar(MODEL_SCALE)
   scene.add(aircraft)
+  let modelLengthM = 0
   void new GLTFLoader()
     .loadAsync(MODEL_URL[opts.platform])
     .then((gltf) => {
@@ -110,6 +114,8 @@ export function createFlightLayer(opts: { track: FlightTrack; fixes: SiteDome[];
           o.frustumCulled = false
         }
       })
+      const size = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3())
+      modelLengthM = Math.max(size.x, size.y, size.z)
       aircraft.add(gltf.scene)
       map?.triggerRepaint()
     })
@@ -150,6 +156,10 @@ export function createFlightLayer(opts: { track: FlightTrack; fixes: SiteDome[];
       placeDrops()
     },
     render(_gl, args: CustomRenderMethodInput) {
+      if (map && modelLengthM > 0) {
+        const metresPerPixel = (EARTH_CIRCUMFERENCE_M * Math.cos((origin.lat * Math.PI) / 180)) / (512 * 2 ** map.getZoom())
+        aircraft.scale.setScalar(Math.max(MODEL_SCALE, (AIRCRAFT_PX * metresPerPixel) / modelLengthM))
+      }
       camera.projectionMatrix = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix as unknown as number[]).multiply(toMercator)
       renderer!.resetState()
       renderer!.render(scene, camera)
