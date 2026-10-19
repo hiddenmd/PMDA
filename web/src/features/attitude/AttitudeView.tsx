@@ -5,7 +5,7 @@ import { drawAircraft, type ModelColors } from './aircraft3d'
 import { attitudeAt, type Attitude, type AttitudeSeries } from './attitude'
 
 /** Instrument colours are the same in both themes, like the real thing; the frame around them follows the theme. */
-const INSTRUMENT = { sky: '#2f6ea6', ground: '#7a5230', line: '#f4f4f5', symbol: '#fbbf24' }
+const INSTRUMENT = { sky: '#3c82c4', skyHigh: '#1f5a94', ground: '#6b4423', groundLow: '#4a2f17', line: '#f4f4f5', symbol: '#fbbf24' }
 const MODEL: Omit<ModelColors, 'grid'> = { body: '#b4bcc8', wing: '#8f99a6', canopy: '#3d6286', rotor: '#a3acb8' }
 const READOUT_EVERY_MS = 100
 
@@ -92,7 +92,7 @@ export function AttitudeView({ actor, series, platform, readout }: AttitudeViewP
     function paint(a: Attitude) {
       const css = getComputedStyle(canvases[0])
       const token = (name: string) => css.getPropertyValue(name).trim()
-      const colors: AdiColors = { ...INSTRUMENT, text: token('--color-foreground'), muted: token('--color-muted-foreground'), bezel: token('--color-border-strong') }
+      const colors: AdiColors = { ...INSTRUMENT, text: token('--color-foreground'), muted: token('--color-muted-foreground'), bezel: token('--color-border-strong'), accent: token('--color-primary') }
 
       const { w, h } = sizes[0]
       adiCtx.clearRect(0, 0, w, h)

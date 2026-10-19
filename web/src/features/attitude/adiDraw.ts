@@ -2,6 +2,12 @@
 export interface AdiColors {
   sky: string
   ground: string
+  /** Sky colour far above the horizon (gradient from `sky` at the horizon). */
+  skyHigh: string
+  /** Ground colour far below the horizon (gradient from `ground` at the horizon). */
+  groundLow: string
+  /** Lubber line and other live markers (the theme's primary). */
+  accent: string
   line: string
   symbol: string
   text: string
@@ -31,9 +37,15 @@ export function drawAdi(ctx: CanvasRenderingContext2D, cx: number, cy: number, r
   ctx.rotate(-roll * RAD)
 
   const horizon = pitch * ppd
-  ctx.fillStyle = c.sky
+  const skyFill = ctx.createLinearGradient(0, horizon - r * 1.2, 0, horizon)
+  skyFill.addColorStop(0, c.skyHigh)
+  skyFill.addColorStop(1, c.sky)
+  ctx.fillStyle = skyFill
   ctx.fillRect(-2 * r, -3 * r, 4 * r, 3 * r + horizon)
-  ctx.fillStyle = c.ground
+  const groundFill = ctx.createLinearGradient(0, horizon, 0, horizon + r * 1.2)
+  groundFill.addColorStop(0, c.ground)
+  groundFill.addColorStop(1, c.groundLow)
+  ctx.fillStyle = groundFill
   ctx.fillRect(-2 * r, horizon, 4 * r, 3 * r)
 
   ctx.strokeStyle = c.line
@@ -44,18 +56,18 @@ export function drawAdi(ctx: CanvasRenderingContext2D, cx: number, cy: number, r
   ctx.lineTo(2 * r, horizon)
   ctx.stroke()
 
-  ctx.lineWidth = line
+  ctx.lineWidth = Math.max(1, line * 0.8)
   ctx.font = `400 ${font}px 'IBM Plex Mono', ui-monospace, monospace`
   ctx.textBaseline = 'middle'
   // The ladder stays inside the bank scale.
   ctx.beginPath()
   ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2)
   ctx.clip()
-  for (let p = -90; p <= 90; p += 5) {
+  for (let p = -90; p <= 90; p += 2.5) {
     if (p === 0) continue
     const y = (pitch - p) * ppd
     if (Math.abs(y) > r * 0.62) continue // whole lines only: no half-clipped labels at the edge
-    const half = p % 10 === 0 ? r * 0.26 : r * 0.12
+    const half = p % 10 === 0 ? r * 0.26 : p % 5 === 0 ? r * 0.14 : r * 0.07
     ctx.beginPath()
     ctx.moveTo(-half, y)
     ctx.lineTo(half, y)
@@ -90,6 +102,14 @@ export function drawAdi(ctx: CanvasRenderingContext2D, cx: number, cy: number, r
   ctx.moveTo(0, -r * 0.83)
   ctx.lineTo(-r * 0.05, -r * 0.74)
   ctx.lineTo(r * 0.05, -r * 0.74)
+  ctx.closePath()
+  ctx.fill()
+  // Slip/skid indicator: centred, because derived attitude has no sideslip.
+  ctx.beginPath()
+  ctx.moveTo(-r * 0.055, -r * 0.715)
+  ctx.lineTo(r * 0.055, -r * 0.715)
+  ctx.lineTo(r * 0.07, -r * 0.68)
+  ctx.lineTo(-r * 0.07, -r * 0.68)
   ctx.closePath()
   ctx.fill()
   ctx.restore()
@@ -136,6 +156,9 @@ export function drawHeadingTape(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.beginPath()
   ctx.rect(x, y, width, height)
   ctx.clip()
+  ctx.fillStyle = 'rgba(8, 11, 18, 0.55)'
+  ctx.fillRect(x, y, width, height)
+  ctx.fillStyle = c.text
   ctx.strokeStyle = c.muted
   ctx.fillStyle = c.text
   ctx.lineWidth = 1
@@ -158,7 +181,7 @@ export function drawHeadingTape(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.restore()
 
   // Lubber line pointing at the current heading.
-  ctx.fillStyle = c.symbol
+  ctx.fillStyle = c.accent
   ctx.beginPath()
   ctx.moveTo(cx, y + height * 0.3)
   ctx.lineTo(cx - height * 0.18, y)
