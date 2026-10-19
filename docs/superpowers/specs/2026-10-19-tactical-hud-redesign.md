@@ -145,6 +145,12 @@ Tabler (`@tabler/icons-react`), 1.5 px stroke, sizes 16 / 18 / 20 (× `--ui-scal
   from the customer symbology profile and is **not** restyled, because it mirrors the real cockpit display.
   Only the panel around it (frame, readouts) takes the HUD treatment. (Found while planning: rings and ticks
   are profile data, so `rwrDraw.ts` is not changed.)
+  - **Amended 2026-10-20:** the panel adds a **Cockpit | Tactical** switch (remembered per browser, Cockpit by
+    default). Cockpit is the profile display above, unchanged. Tactical (`rwrTactical.ts`) draws the same
+    `buildThreats` output in the HUD style: a rose with three-digit relative bearings, the map's cyan own-ship,
+    lethality-coloured diamonds with condensed codes, filled diamonds plus a red ring and a bearing spoke when
+    locked, corner brackets on the priority threat, and a status strip (count, priority, LOCK, chaff/flares).
+    It has no sweep, because an RWR only receives.
 - **Attitude:** sky/ground and aircraft-model colours stay realistic. The frame, readouts and rate tapes
   use HUD tokens.
 - **Graphs (uPlot):**

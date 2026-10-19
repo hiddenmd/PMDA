@@ -2,11 +2,28 @@ import { useEffect, useRef } from 'react'
 import type { PlaybackActor } from '../../workspace/workspaceContext'
 import { stepForSpeed, viewAt } from '../playback/playbackView'
 import { drawRwr } from './rwrDraw'
+import { drawTactical, type TacticalTokens } from './rwrTactical'
 import { buildThreats, dispensedBy, type ResolvedProfile } from './symbology'
+
+/** Cockpit mirrors the customer's display; Tactical draws the same threats in the HUD style. */
+export type RwrLook = 'cockpit' | 'tactical'
+
+const css = (el: Element, name: string) => getComputedStyle(el).getPropertyValue(name).trim()
+const tacticalTokens = (el: Element): TacticalTokens => ({
+  background: css(el, '--color-background'),
+  foreground: css(el, '--color-foreground'),
+  muted: css(el, '--color-muted-foreground'),
+  border: css(el, '--color-border'),
+  borderStrong: css(el, '--color-border-strong'),
+  primary: css(el, '--color-primary'),
+  critical: css(el, '--color-alert-critical'),
+  warning: css(el, '--color-alert-warning'),
+})
 
 interface RwrScopeProps {
   actor: PlaybackActor
   profile: ResolvedProfile
+  look: RwrLook
   /** The flight's countermeasure releases, sorted by time (for the remaining counter). */
   releases: readonly { t: number; kind: number; count: number }[]
   label: string
@@ -17,13 +34,15 @@ interface RwrScopeProps {
  * so 60 fps playback never re-renders React. Repaints when the playhead, data, profile or size
  * change, and continuously while a new threat is blinking.
  */
-export function RwrScope({ actor, profile, releases, label }: RwrScopeProps) {
+export function RwrScope({ actor, profile, look, releases, label }: RwrScopeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const profileRef = useRef(profile)
   const releasesRef = useRef(releases)
+  const lookRef = useRef(look)
   useEffect(() => {
     profileRef.current = profile
     releasesRef.current = releases
+    lookRef.current = look
   })
 
   useEffect(() => {
@@ -59,26 +78,37 @@ export function RwrScope({ actor, profile, releases, label }: RwrScopeProps) {
       observer.observe(canvas) // Safari
     }
 
-    let last = { position: -1, frames: null as unknown, profile: null as unknown, blinking: false }
+    // The Tactical look takes its colours from the theme: repaint when it changes.
+    let tokens: TacticalTokens | null = null
+    const themeObserver = new MutationObserver(() => {
+      tokens = null
+      dirty = true
+    })
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+
+    let last = { position: -1, frames: null as unknown, profile: null as unknown, look: null as RwrLook | null, blinking: false }
     let handle = requestAnimationFrame(function draw(now) {
       const { positionMs, frames, speed } = actor.getSnapshot().context
       const currentProfile = profileRef.current
+      const currentLook = lookRef.current
       if (size.w >= 120 && size.h >= 120) {
-        const changed = dirty || positionMs !== last.position || frames !== last.frames || currentProfile !== last.profile
+        const changed = dirty || positionMs !== last.position || frames !== last.frames || currentProfile !== last.profile || currentLook !== last.look
         if (changed || last.blinking) {
           const view = viewAt(frames, positionMs, stepForSpeed(speed))
           const threats = buildThreats(view.emitters, currentProfile)
           const load = currentProfile.display.countermeasures
           const used = load ? dispensedBy(releasesRef.current, positionMs) : null
-          drawRwr(ctx, pixels.w, pixels.h, {
+          const frame = {
             profile: currentProfile,
             threats,
             remaining: load && used ? { chaff: load.chaff - used.chaff, flares: load.flares - used.flares } : null,
             persistenceMs: view.persistenceMs,
             now,
             still: reducedMotion.matches,
-          })
-          last = { position: positionMs, frames, profile: currentProfile, blinking: threats.some((t) => t.isNew) && !reducedMotion.matches }
+          }
+          if (currentLook === 'tactical') drawTactical(ctx, pixels.w, pixels.h, frame, (tokens ??= tacticalTokens(canvas)))
+          else drawRwr(ctx, pixels.w, pixels.h, frame)
+          last = { position: positionMs, frames, profile: currentProfile, look: currentLook, blinking: threats.some((t) => t.isNew) && !reducedMotion.matches }
           dirty = false
         }
       }
@@ -88,6 +118,7 @@ export function RwrScope({ actor, profile, releases, label }: RwrScopeProps) {
     return () => {
       cancelAnimationFrame(handle)
       observer.disconnect()
+      themeObserver.disconnect()
     }
   }, [actor])
 

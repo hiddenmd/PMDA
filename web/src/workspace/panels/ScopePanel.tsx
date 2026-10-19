@@ -1,10 +1,17 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { storage } from '../../lib/preferences'
 import { usePlaybackState } from '../../features/playback/usePlayback'
-import { RwrScope } from '../../features/rwr/RwrScope'
+import { RwrScope, type RwrLook } from '../../features/rwr/RwrScope'
 import { buildThreats } from '../../features/rwr/symbology'
 import { useReleases, useSymbology } from '../../features/rwr/useSymbology'
 import { useWorkspace, type PlaybackActor } from '../workspaceContext'
 import { NoPlayback } from './EmptyPanel'
+
+const LOOK_KEY = 'pmda-rwr-look'
+const LOOKS: { value: RwrLook; label: string }[] = [
+  { value: 'cockpit', label: 'Cockpit' },
+  { value: 'tactical', label: 'Tactical' },
+]
 
 export function ScopePanel() {
   const { playback, flight, flightLoading } = useWorkspace()
@@ -18,6 +25,11 @@ function ScopeView({ actor, flightId, customerId }: { actor: PlaybackActor; flig
   const releases = useReleases(flightId)
   const threats = useMemo(() => (profile ? buildThreats(view.emitters, profile) : []), [view.emitters, profile])
   const { position } = view
+  const [look, setLook] = useState<RwrLook>(() => (storage.get(LOOK_KEY) === 'tactical' ? 'tactical' : 'cockpit'))
+  const chooseLook = (next: RwrLook) => {
+    setLook(next)
+    storage.set(LOOK_KEY, next)
+  }
 
   const label =
     threats.length === 0
@@ -39,9 +51,17 @@ function ScopeView({ actor, flightId, customerId }: { actor: PlaybackActor; flig
           ))}
         </select>
         {profile && <span className="muted small">{profile.name}</span>}
+        <span className="panel-toolbar__spacer" />
+        <div className="segmented" role="group" aria-label="RWR display style">
+          {LOOKS.map((l) => (
+            <button key={l.value} type="button" aria-pressed={look === l.value} onClick={() => chooseLook(l.value)}>
+              {l.label}
+            </button>
+          ))}
+        </div>
       </div>
       {error && <div className="empty">Could not load symbology.</div>}
-      {profile ? <RwrScope actor={actor} profile={profile} releases={releases.data ?? []} label={label} /> : !error && <div className="empty">Loading symbology…</div>}
+      {profile ? <RwrScope actor={actor} profile={profile} look={look} releases={releases.data ?? []} label={label} /> : !error && <div className="empty">Loading symbology…</div>}
       <dl className="readout" aria-label="Aircraft position">
         <div>
           <dt>Latitude</dt>
