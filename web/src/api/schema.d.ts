@@ -11,8 +11,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Base-map tile source for the map panel. */
+        /** Base-map source, glyphs and terrain for the map panel. */
         get: operations["GetMapSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/map/tiles.pmtiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The configured offline PMTiles base map (HTTP range requests). */
+        get: operations["GetMapTiles"];
         put?: never;
         post?: never;
         delete?: never;
@@ -356,6 +373,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/flights/{id}/emitter-fixes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ESTIMATED fixed-emitter sites from RWR bearings (bearing-only least squares, 95% ellipses); unresolved emitters say why. */
+        get: operations["GetEmitterFixes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/flights/{id}/events": {
         parameters: {
             query?: never;
@@ -575,6 +609,38 @@ export interface components {
             /** Format: int32 */
             maxSymbols?: number;
         };
+        EmitterFixDto: {
+            /** Format: int32 */
+            emitterId: number;
+            resolved: boolean;
+            /** Format: double */
+            lat: number | null;
+            /** Format: double */
+            lon: number | null;
+            /** Format: double */
+            ellipseMajorM: number;
+            /** Format: double */
+            ellipseMinorM: number;
+            /** Format: double */
+            ellipseAzimuthDeg: number;
+            /** Format: int32 */
+            bearings: number;
+            /** Format: double */
+            spreadDeg: number;
+            /** Format: double */
+            rmsResidualDeg: number;
+            reason: string | null;
+            /** Format: float */
+            frequencyMHz: number;
+            /** Format: float */
+            priUs: number;
+            /** Format: float */
+            pulseWidthUs: number;
+            /** Format: int64 */
+            firstMs: number;
+            /** Format: int64 */
+            lastMs: number;
+        };
         EmitterHitDto: {
             /** Format: int32 */
             emitterId: number;
@@ -772,8 +838,12 @@ export interface components {
             password: string;
         };
         MapSettingsDto: {
-            tileUrl: string | null;
-            attribution: string | null;
+            source: string;
+            tileJsonUrl: string | null;
+            glyphsUrl: string | null;
+            pmtilesUrl: string | null;
+            terrainUrl: string | null;
+            attribution: string;
             /** Format: int32 */
             maxZoom: number;
         };
@@ -961,6 +1031,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MapSettingsDto"];
                 };
+            };
+        };
+    };
+    GetMapTiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -1844,6 +1932,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlertDto"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetEmitterFixes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmitterFixDto"][];
                 };
             };
             /** @description Not Found */

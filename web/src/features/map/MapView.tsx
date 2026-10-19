@@ -63,8 +63,10 @@ export function MapView({ actor, track, alerts, settings, profile, startUtc, fol
     const container = containerRef.current!
     const map = L.map(container, { preferCanvas: true, zoomControl: true, attributionControl: true, worldCopyJump: true })
     mapRef.current = map
-    if (settings.tileUrl) {
-      L.tileLayer(settings.tileUrl, { attribution: settings.attribution ?? '', maxZoom: settings.maxZoom, subdomains: 'abcd' }).addTo(map)
+    // replaced in the MapLibre rewrite
+    const tileUrl: string | null = null
+    if (tileUrl) {
+      L.tileLayer(tileUrl, { attribution: settings.attribution ?? '', maxZoom: settings.maxZoom, subdomains: 'abcd' }).addTo(map)
     }
     map.on('dragstart', () => live.current.onFollowChange(false))
 
@@ -222,7 +224,7 @@ export function MapView({ actor, track, alerts, settings, profile, startUtc, fol
   return (
     <div className="map-view">
       <div ref={containerRef} className="map-view__map" role="application" aria-label="Flight map: track, aircraft position and missile alerts" />
-      {!settings.tileUrl && <p className="map-view__note">No base map configured: track only.</p>}
+      {settings.source === 'None' && <p className="map-view__note">No base map configured: track only.</p>}
     </div>
   )
 }

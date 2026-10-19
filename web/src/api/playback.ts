@@ -19,3 +19,6 @@ export const getAlerts = (flightId: string, signal?: AbortSignal) =>
   unwrap(api.GET('/api/flights/{id}/alerts', { params: { path: { id: flightId } }, signal }))
 
 export const getMapSettings = (signal?: AbortSignal) => unwrap(api.GET('/api/map', { signal }))
+
+export const getEmitterFixes = (flightId: string, signal?: AbortSignal) =>
+  unwrap(api.GET('/api/flights/{id}/emitter-fixes', { params: { path: { id: flightId } }, signal }))
