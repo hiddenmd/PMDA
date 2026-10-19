@@ -40,6 +40,8 @@ builder.Services.AddPmdaAuth(builder.Configuration);
 builder.Services.AddOptions<SymbologyOptions>().Bind(builder.Configuration.GetSection(SymbologyOptions.Section));
 builder.Services.AddSingleton<SymbologyCatalog>();
 builder.Services.AddOptions<MapOptions>().Bind(builder.Configuration.GetSection(MapOptions.Section)).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddMemoryCache(o => o.SizeLimit = 200);
+builder.Services.AddSingleton<EmitterFixService>();
 builder.Services.AddSingleton<FlightPurger>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FlightPurger>());
 

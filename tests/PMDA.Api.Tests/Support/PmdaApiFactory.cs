@@ -14,7 +14,7 @@ using PMDA.Data;
 namespace PMDA.Api.Tests.Support;
 
 /// <summary>The real API, hosted in memory against the test database.</summary>
-public sealed class PmdaApiFactory(SqlDatabase db) : WebApplicationFactory<Program>
+public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? settings = null) : WebApplicationFactory<Program>
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -30,6 +30,8 @@ public sealed class PmdaApiFactory(SqlDatabase db) : WebApplicationFactory<Progr
         builder.UseSetting("Database:EnsureCreatedOnStart", "false");
         builder.UseSetting("Imports:TempDirectory", UploadDirectory);
         foreach (var (key, value) in Settings)
+            builder.UseSetting(key, value);
+        foreach (var (key, value) in settings ?? new Dictionary<string, string?>())
             builder.UseSetting(key, value);
     }
 

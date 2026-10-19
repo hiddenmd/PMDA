@@ -20,6 +20,8 @@ public sealed record FlightTrack(long[] T, double[] Lat, double[] Lon, float[] A
 /// <summary>One aural warning. Bearing is relative to the aircraft nose, like the RWR's.</summary>
 public sealed record AlertRecord(long OffsetMs, AlertKind Kind, int? EmitterId, float? BearingDeg);
 
+public sealed record EmitterBearingSlice(int EmitterId, long OffsetMs, double RelativeBearingDeg, float FrequencyMHz, float PriUs, float PulseWidthUs);
+
 public sealed record FlightOverview(long SpanMs, int Buckets, IReadOnlyDictionary<EventType, long[]> Counts);
 
 /// <summary>
@@ -205,6 +207,40 @@ public sealed class PlaybackRepository(string connectionString)
                 r.EmitterId,
                 r.BearingDeg is { } b ? NormalizeDeg(b) : null))
             .ToList();
+    }
+
+    public const long BearingSliceMs = 2_000;
+
+    /// <summary>
+    /// Per emitter, the circular-mean relative bearing in <see cref="BearingSliceMs"/> slices (offset ms from the flight start),
+    /// with the emitter's mean frequency, PRI and pulse width. Null when the flight does not exist.
+    /// </summary>
+    public async Task<IReadOnlyList<EmitterBearingSlice>?> GetEmitterBearingsAsync(Guid flightId, CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connectionString);
+        var start = await GetStartAsync(conn, flightId, ct);
+        if (start is null)
+            return null;
+
+        var rows = await conn.QueryAsync<EmitterBearingSlice>(new CommandDefinition("""
+            WITH e AS (
+                SELECT EmitterId, DATEDIFF_BIG(MILLISECOND, @Start, TimeUtc) AS T, RADIANS(CAST(BearingDeg AS float)) AS B,
+                       FrequencyMHz, PriUs, PulseWidthUs
+                FROM dbo.FlightEvent
+                WHERE FlightId = @flightId AND EventType = @Emitter AND EmitterId IS NOT NULL AND BearingDeg IS NOT NULL AND TimeUtc >= @Start
+            )
+            SELECT EmitterId, AVG(T) AS OffsetMs, DEGREES(ATN2(AVG(SIN(B)), AVG(COS(B)))) AS RelativeBearingDeg,
+                   CAST(AVG(CAST(FrequencyMHz AS float)) AS real) AS FrequencyMHz,
+                   CAST(AVG(CAST(PriUs AS float)) AS real) AS PriUs,
+                   CAST(AVG(CAST(PulseWidthUs AS float)) AS real) AS PulseWidthUs
+            FROM e
+            GROUP BY EmitterId, T / @SliceMs
+            ORDER BY EmitterId, OffsetMs;
+            """,
+            new { flightId, Start = start.Value, SliceMs = BearingSliceMs, Emitter = (byte)EventType.Emitter },
+            commandTimeout: 300,
+            cancellationToken: ct));
+        return rows.AsList();
     }
 
     private static async Task<DateTime?> GetStartAsync(SqlConnection conn, Guid flightId, CancellationToken ct) =>

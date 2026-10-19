@@ -44,4 +44,9 @@ public sealed record FlightTrackDto(long[] T, double[] Lat, double[] Lon, float[
 public sealed record AlertDto(long OffsetMs, AlertKind Kind, int? EmitterId, float? BearingDeg);
 
 /// <param name="TileUrl">Leaflet URL template for base-map tiles; null means no base map (track on a plain grid).</param>
-public sealed record MapSettingsDto(string? TileUrl, string? Attribution, int MaxZoom);
+public sealed record MapSettingsDto(string Source, string? TileJsonUrl, string? GlyphsUrl, string? PmtilesUrl, string? TerrainUrl, string Attribution, int MaxZoom);
+
+/// <summary>An estimated (never measured) fixed-emitter site from RWR bearings, or why it could not be estimated.</summary>
+public sealed record EmitterFixDto(
+    int EmitterId, bool Resolved, double? Lat, double? Lon, double EllipseMajorM, double EllipseMinorM, double EllipseAzimuthDeg,
+    int Bearings, double SpreadDeg, double RmsResidualDeg, string? Reason, float FrequencyMHz, float PriUs, float PulseWidthUs, long FirstMs, long LastMs);

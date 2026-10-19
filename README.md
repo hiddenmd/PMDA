@@ -57,6 +57,16 @@ dotnet run --project tools/PMDA.SampleGen -c Release -- --all samples
 
 `--list` shows the scenarios; `--scenario <name> <file>` writes one.
 
+## Map
+
+The tactical map defaults to OpenFreeMap vector tiles plus AWS terrain tiles for 3D, both free and keyless. The
+required attribution is shown on the map. Set `Map:Source` to `PMTiles` with `Map:PmtilesPath` (an OpenMapTiles-schema
+`.pmtiles` file, served at `/api/map/tiles.pmtiles` with range requests), `Map:GlyphsUrl` pointing at a local glyph
+folder and an empty `Map:TerrainUrl` to run fully offline. `Map:Source` = `None` hides the base map.
+
+Privacy: the online sources see the area being viewed (tile and terrain requests), so classified sites should use
+the offline setup or no base map.
+
 ## Accounts
 
 PMDA has its own user accounts (roles **Admin** and **Analyst**). On first start, with no users in the

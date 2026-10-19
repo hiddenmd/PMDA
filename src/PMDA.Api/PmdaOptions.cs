@@ -39,18 +39,32 @@ public sealed class ImportsOptions
     public string ResolvedTempDirectory => TempDirectory ?? Path.Combine(Path.GetTempPath(), "pmda-uploads");
 }
 
+public enum MapSource { OpenFreeMap, PMTiles, None }
+
 public sealed class MapOptions
 {
     public const string Section = "Map";
 
     /// <summary>
-    /// Base-map tile URL template ({z}/{x}/{y}, optional {s} and {r}). Tile requests reveal the area being viewed to
-    /// the tile server, so classified sites should point this at an internal tile server or leave it empty for no base map.
+    /// Where the base map comes from. Online sources (OpenFreeMap tiles and glyphs, AWS terrain) reveal the area being
+    /// viewed to those servers; classified sites should use <see cref="MapSource.PMTiles"/> with a local glyph URL and an
+    /// empty <see cref="TerrainUrl"/>, or <see cref="MapSource.None"/>.
     /// </summary>
-    public string? TileUrl { get; set; }
+    public MapSource Source { get; set; } = MapSource.OpenFreeMap;
 
-    public string? Attribution { get; set; }
+    public string TileJsonUrl { get; set; } = "https://tiles.openfreemap.org/planet";
+
+    public string? GlyphsUrl { get; set; } = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
+
+    /// <summary>Server path of an OpenMapTiles-schema .pmtiles file, served at /api/map/tiles.pmtiles when Source is PMTiles.</summary>
+    public string? PmtilesPath { get; set; }
+
+    /// <summary>Terrarium-encoded elevation tiles for 3D; empty for flat 3D.</summary>
+    public string? TerrainUrl { get; set; } = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+
+    public string Attribution { get; set; } =
+        "<a href=\"https://openfreemap.org\">OpenFreeMap</a> © <a href=\"https://www.openmaptiles.org/\">OpenMapTiles</a> Data from <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>";
 
     [Range(1, 22)]
-    public int MaxZoom { get; set; } = 18;
+    public int MaxZoom { get; set; } = 15;
 }

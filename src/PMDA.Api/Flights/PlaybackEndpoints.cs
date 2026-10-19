@@ -31,11 +31,39 @@ public static class PlaybackEndpoints
             .WithSummary("Aural warnings (new threat, lock, missile launch, missile approach, countermeasures low/out) in time order.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        app.MapGet("/api/map", (IOptions<MapOptions> map) =>
-                TypedResults.Ok(new MapSettingsDto(string.IsNullOrWhiteSpace(map.Value.TileUrl) ? null : map.Value.TileUrl, map.Value.Attribution, map.Value.MaxZoom)))
-            .WithTags("Playback").WithName("GetMapSettings").WithSummary("Base-map tile source for the map panel.");
+        group.MapGet("/emitter-fixes", EmitterFixes).WithName("GetEmitterFixes")
+            .WithSummary("ESTIMATED fixed-emitter sites from RWR bearings (bearing-only least squares, 95% ellipses); unresolved emitters say why.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+  
+
+        app.MapGet("/api/map", (IOptions<MapOptions> options) =>
+            {
+                var m = options.Value;
+                var pmtiles = m.Source == MapSource.PMTiles && File.Exists(m.PmtilesPath) ? "/api/map/tiles.pmtiles" : null;
+                var terrain = string.IsNullOrWhiteSpace(m.TerrainUrl) ? null : m.TerrainUrl;
+                return TypedResults.Ok(new MapSettingsDto(
+                    m.Source.ToString(),
+                    m.Source == MapSource.OpenFreeMap ? m.TileJsonUrl : null,
+                    string.IsNullOrWhiteSpace(m.GlyphsUrl) ? null : m.GlyphsUrl,
+                    pmtiles,
+                    terrain,
+                    m.Attribution,
+                    m.MaxZoom));
+            })
+            .WithTags("Playback").WithName("GetMapSettings").WithSummary("Base-map source, glyphs and terrain for the map panel.");
+
+        app.MapGet("/api/map/tiles.pmtiles", Results<PhysicalFileHttpResult, NotFound> (IOptions<MapOptions> options) =>
+                options.Value is { Source: MapSource.PMTiles, PmtilesPath: { } path } && File.Exists(path)
+                    ? TypedResults.PhysicalFile(path, "application/octet-stream", enableRangeProcessing: true)
+                    : TypedResults.NotFound())
+            .WithTags("Playback").WithName("GetMapTiles").WithSummary("The configured offline PMTiles base map (HTTP range requests).");
+  
         return app;
     }
+
+    private static async Task<Results<Ok<EmitterFixDto[]>, NotFound>> EmitterFixes(Guid id, EmitterFixService fixes, CancellationToken ct) =>
+        await fixes.GetAsync(id, ct) is { } result ? TypedResults.Ok(result) : TypedResults.NotFound();
+  
 
     private static async Task<Results<Ok<FlightTrackDto>, ValidationProblem, NotFound>> Track(
         Guid id, PlaybackRepository playback, CancellationToken ct, int points = 4_000)
