@@ -47,7 +47,7 @@
   white-space: nowrap;
 }
 .appbar__flight strong::after {
-  content: ' //';
+  content: ' //' / '';
   color: var(--color-muted-foreground);
   font-weight: var(--fw-regular);
 }
@@ -102,7 +102,7 @@
 
 .dockview-theme-pmda {
   --dv-paneview-active-outline-color: var(--color-ring);
-  --dv-tabs-and-actions-container-font-size: var(--fs-label);
+  --dv-tabs-and-actions-container-font-size: var(--fs-label-md);
   --dv-tabs-and-actions-container-height: calc(30px * var(--ui-scale));
   --dv-drag-over-background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
   --dv-drag-over-border-color: var(--color-primary);
@@ -113,7 +113,7 @@
   --dv-floating-box-shadow: var(--shadow-popover);
   --dv-floating-border: 1px solid var(--color-border-strong);
   --dv-overlay-z-index: 999;
-  --dv-tab-font-size: var(--fs-label);
+  --dv-tab-font-size: var(--fs-label-md);
   --dv-border-radius: var(--radius-panel);
   --dv-tab-margin: 0;
   --dv-sash-color: transparent;

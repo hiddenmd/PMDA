@@ -8,7 +8,7 @@
   height: var(--control-height);
   padding: 0 var(--space-lg);
   font-family: var(--font-display);
-  font-size: var(--fs-label);
+  font-size: var(--fs-label-lg);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
   text-transform: uppercase;
@@ -68,7 +68,7 @@
 .btn--compact {
   height: var(--control-height-compact);
   padding: 0 var(--space-md);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-label-md);
 }
 .btn--compact.btn--icon {
   width: var(--control-height-compact);
@@ -147,7 +147,7 @@
   padding: 0 var(--space-md);
   font: inherit;
   font-family: var(--font-display);
-  font-size: var(--fs-label);
+  font-size: var(--fs-label-md);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
   text-transform: uppercase;
@@ -159,7 +159,7 @@
 }
 .segmented button[aria-pressed='true'] {
   background: var(--color-selection);
-  color: var(--color-primary);
+  color: var(--color-foreground);
   box-shadow: inset 0 0 0 1px var(--color-primary);
 }
 
@@ -220,21 +220,21 @@
 .badge__bars {
   display: inline-flex;
   align-items: flex-end;
-  gap: 2px;
-  height: 10px;
+  gap: calc(2px * var(--ui-scale));
+  height: calc(10px * var(--ui-scale));
 }
 .badge__bars i {
-  width: 3px;
+  width: calc(3px * var(--ui-scale));
   background: var(--color-border-strong);
 }
 .badge__bars i:nth-child(1) {
-  height: 4px;
+  height: calc(4px * var(--ui-scale));
 }
 .badge__bars i:nth-child(2) {
-  height: 7px;
+  height: calc(7px * var(--ui-scale));
 }
 .badge__bars i:nth-child(3) {
-  height: 10px;
+  height: calc(10px * var(--ui-scale));
 }
 .badge--connected .badge__bars i {
   background: var(--color-primary);
@@ -345,10 +345,9 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-popover);
-  overflow: visible;
   --hud-bracket: var(--color-primary);
   --hud-bracket-size: 8px;
-  --hud-bracket-inset: -1px;
+  --hud-bracket-inset: 0px;
 }
 .dialog::backdrop {
   background: rgb(8 11 18 / 0.7);
@@ -478,7 +477,7 @@
 .table tbody tr:hover {
   background: var(--color-hover);
 }
-.table tr.is-current {
+.table tbody tr.is-current {
   background: var(--color-selection);
   box-shadow:
     inset 0 0 0 1px var(--color-primary),
@@ -529,4 +528,11 @@
 .threat-critical {
   color: var(--color-destructive);
   font-weight: var(--fw-medium);
+}
+
+/* Values the user typed (user names, IDs) keep their case inside uppercase display titles. */
+.as-entered {
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: var(--font-mono);
 }

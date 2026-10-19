@@ -95,11 +95,10 @@ p {
   }
 }
 
-/* ---------- HUD frame: corner brackets (top-left, bottom-right), defined once ---------- */
+/* ---------- HUD corner brackets (top-left, bottom-right), defined once ---------- */
 /* The framed element must be positioned. Override per element: --hud-bracket (colour),
    --hud-bracket-size (arm length, default 8px), --hud-bracket-inset (default -1px). */
 
-.hud-frame::after,
 .dockview-theme-pmda .dv-groupview::after,
 .menu::after,
 .dialog::after,

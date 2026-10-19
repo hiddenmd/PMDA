@@ -91,7 +91,20 @@ export function UsersPanel() {
 }
 
 function UserDialog({ editing, onClose }: { editing: Editing; onClose: () => void }) {
-  const title = editing?.mode === 'create' ? 'Add user' : editing?.mode === 'edit' ? `Edit ${editing.user.userName}` : editing ? `Reset password of ${editing.user.userName}` : ''
+  const title =
+    editing?.mode === 'create' ? (
+      'Add user'
+    ) : editing?.mode === 'edit' ? (
+      <>
+        Edit <span className="as-entered">{editing.user.userName}</span>
+      </>
+    ) : editing ? (
+      <>
+        Reset password of <span className="as-entered">{editing.user.userName}</span>
+      </>
+    ) : (
+      ''
+    )
   return (
     <Dialog open={editing !== null} title={title} onClose={onClose}>
       {editing?.mode === 'create' && <CreateForm onDone={onClose} />}

@@ -18,7 +18,6 @@
   --color-foreground: #cfd8e6;
   --color-muted-foreground: #8fa3bf;
   --color-primary: #4cc3ff;
-  --color-primary-hover: #7dd3ff;
   --color-on-primary: #080b12;
   --color-selection: rgb(76 195 255 / 0.1);
   --color-link: #4cc3ff;
@@ -59,12 +58,13 @@
   --fs-xl: calc(20px * var(--ui-scale));
   /* Saira Condensed runs small: display labels sit 1 px above the Plex size they replace */
   --fs-label: calc(12px * var(--ui-scale));
+  --fs-label-md: calc(13px * var(--ui-scale));
+  --fs-label-lg: calc(14px * var(--ui-scale));
   --lh-dense: 1.35;
   --lh-body: 1.5;
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
-  --tracking-label: 0.06em;
   --tracking-display: 0.1em;
 
   /* Space, shape, controls */
@@ -96,7 +96,6 @@
   --color-foreground: #0b1a33;
   --color-muted-foreground: #475a75;
   --color-primary: #0369a1;
-  --color-primary-hover: #075985;
   --color-on-primary: #ffffff;
   --color-selection: rgb(3 105 161 / 0.1);
   --color-link: #0369a1;
