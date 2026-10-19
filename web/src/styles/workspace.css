@@ -11,8 +11,8 @@
   align-items: center;
   gap: var(--space-md);
   padding: 0 var(--space-md) 0 var(--space-lg);
-  background: var(--color-card);
-  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(var(--color-panel-header), var(--color-card));
+  border-bottom: 1px solid var(--color-border-strong);
   min-width: 0;
 }
 .brand {
@@ -22,11 +22,11 @@
   margin-right: var(--space-md);
 }
 .brand svg {
-  color: var(--color-accent);
+  color: var(--color-primary);
 }
 .brand h1 {
-  font-size: var(--fs-md);
-  letter-spacing: 0.02em;
+  font-size: var(--fs-lg);
+  color: var(--color-primary);
 }
 .appbar__divider {
   width: 1px;
@@ -46,6 +46,11 @@
   font-size: var(--fs-md);
   white-space: nowrap;
 }
+.appbar__flight strong::after {
+  content: ' //';
+  color: var(--color-muted-foreground);
+  font-weight: var(--fw-regular);
+}
 .appbar__flight .muted {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -64,8 +69,9 @@
   place-items: center;
   width: calc(22px * var(--ui-scale));
   height: calc(22px * var(--ui-scale));
-  border-radius: 50%;
-  font-size: var(--fs-xs);
+  border-radius: var(--radius-control);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   color: var(--color-on-primary);
   background: var(--color-primary);
@@ -83,8 +89,8 @@
   display: grid;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-lg) var(--space-md);
-  background: var(--color-card);
-  border-top: 1px solid var(--color-border);
+  background: var(--color-panel-header);
+  border-top: 1px solid var(--color-border-strong);
 }
 .playbar--idle {
   padding: var(--space-md) var(--space-lg);
@@ -96,7 +102,7 @@
 
 .dockview-theme-pmda {
   --dv-paneview-active-outline-color: var(--color-ring);
-  --dv-tabs-and-actions-container-font-size: var(--fs-sm);
+  --dv-tabs-and-actions-container-font-size: var(--fs-label);
   --dv-tabs-and-actions-container-height: calc(30px * var(--ui-scale));
   --dv-drag-over-background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
   --dv-drag-over-border-color: var(--color-primary);
@@ -107,7 +113,7 @@
   --dv-floating-box-shadow: var(--shadow-popover);
   --dv-floating-border: 1px solid var(--color-border-strong);
   --dv-overlay-z-index: 999;
-  --dv-tab-font-size: var(--fs-sm);
+  --dv-tab-font-size: var(--fs-label);
   --dv-border-radius: var(--radius-panel);
   --dv-tab-margin: 0;
   --dv-sash-color: transparent;
@@ -119,14 +125,14 @@
   --dv-sash-border-radius: 0px;
   --dv-dropdown-border-radius: var(--radius-panel);
   --dv-floating-group-border: 1px solid var(--color-border-strong);
-  --dv-floating-titlebar-background-color: var(--color-muted);
+  --dv-floating-titlebar-background-color: var(--color-panel-header);
 
   --dv-group-view-background-color: var(--color-card);
-  --dv-tabs-and-actions-container-background-color: var(--color-background);
+  --dv-tabs-and-actions-container-background-color: var(--color-panel-header);
   --dv-activegroup-visiblepanel-tab-background-color: var(--color-card);
-  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-background);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-panel-header);
   --dv-inactivegroup-visiblepanel-tab-background-color: var(--color-card);
-  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-background);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-panel-header);
   --dv-tab-divider-color: var(--color-border);
   --dv-activegroup-visiblepanel-tab-color: var(--color-foreground);
   --dv-activegroup-hiddenpanel-tab-color: var(--color-muted-foreground);
@@ -139,16 +145,29 @@
 
   font-family: var(--font-sans);
 }
-/* Active tab of the focused group gets the blue top rule. */
+/* Tabs: condensed uppercase; the focused group's active tab gets the cyan top rule. */
+.dockview-theme-pmda .dv-tab {
+  padding: 0 var(--space-md) 0 var(--space-lg);
+  font-family: var(--font-display);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+}
 .dockview-theme-pmda .dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tab.dv-active-tab {
   box-shadow: inset 0 2px 0 var(--color-primary);
 }
-.dockview-theme-pmda .dv-tab {
-  padding: 0 var(--space-md) 0 var(--space-lg);
-}
+/* Every group is a HUD frame (brackets drawn by the shared rule in base.css); unfocused groups dim them. */
 .dockview-theme-pmda .dv-groupview {
+  position: relative;
+  --hud-bracket-inset: 0px;
   border-right: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
+}
+.dockview-theme-pmda .dv-groupview:not(.dv-active-group) {
+  --hud-bracket: var(--color-border-strong);
+}
+.dockview-theme-pmda .dv-sash:hover {
+  background: var(--color-primary);
 }
 
 /* ---------- Panel content ---------- */
@@ -172,7 +191,7 @@
   gap: var(--space-sm) var(--space-md);
   padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-card);
+  background: var(--color-panel-header);
 }
 .panel-toolbar__spacer {
   flex: 1;

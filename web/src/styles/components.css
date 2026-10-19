@@ -183,25 +183,45 @@
   gap: var(--space-sm);
   height: calc(22px * var(--ui-scale));
   padding: 0 var(--space-md);
-  font-size: var(--fs-xs);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   white-space: nowrap;
 }
-.badge__dot {
-  width: 7px;
+/* Link strength: connected 3 cyan bars, (re)connecting 2 amber, offline 1 red; the label carries the meaning. */
+.badge__bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+.badge__bars i {
+  width: 3px;
+  background: var(--color-border-strong);
+}
+.badge__bars i:nth-child(1) {
+  height: 4px;
+}
+.badge__bars i:nth-child(2) {
   height: 7px;
-  border-radius: 50%;
 }
-.badge--connected .badge__dot {
-  background: var(--color-success);
+.badge__bars i:nth-child(3) {
+  height: 10px;
 }
-.badge--connecting .badge__dot,
-.badge--reconnecting .badge__dot {
+.badge--connected .badge__bars i {
+  background: var(--color-primary);
+}
+.badge--connecting .badge__bars i:nth-child(-n + 2),
+.badge--reconnecting .badge__bars i:nth-child(-n + 2) {
   background: var(--color-accent);
   animation: pulse 1.2s ease-in-out infinite;
 }
-.badge--offline .badge__dot {
+.badge--offline .badge__bars i:nth-child(1) {
   background: var(--color-destructive);
 }
 @keyframes pulse {

@@ -10,7 +10,11 @@ const labels: Record<ConnectionStatus, string> = {
 export function ConnectionBadge({ status }: { status: ConnectionStatus }) {
   return (
     <span className={`badge badge--${status}`} role="status" aria-live="polite">
-      <span className="badge__dot" aria-hidden />
+      <span className="badge__bars" aria-hidden>
+        <i />
+        <i />
+        <i />
+      </span>
       {labels[status]}
     </span>
   )
