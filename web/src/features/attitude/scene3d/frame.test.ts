@@ -81,25 +81,25 @@ describe('cameraOffset', () => {
 
   it('chases from behind-right-above at heading 0', () => {
     const o = cameraOffset('chase', 0, none)
-    expect(o.x).toBeCloseTo(7, 1)
-    expect(o.y).toBeCloseTo(3.2, 1)
-    expect(o.z).toBeCloseTo(17, 1)
+    expect(o.x).toBeCloseTo(16, 1)
+    expect(o.y).toBeCloseTo(7.4, 1)
+    expect(o.z).toBeCloseTo(39, 1)
   })
 
   it('turns with the heading', () => {
     const o = cameraOffset('side', 90, none)
     expect(o.x).toBeCloseTo(0, 5)
-    expect(o.z).toBeCloseTo(22, 5) // right of an east-bound aircraft is south (+z)
+    expect(o.z).toBeCloseTo(50, 5) // right of an east-bound aircraft is south (+z)
   })
 
   it('looks down from above, north-up, regardless of heading', () => {
     const o = cameraOffset('top', 123, none)
-    expect(o.y).toBeGreaterThan(39)
+    expect(o.y).toBeGreaterThan(59)
     expect(o.x).toBeCloseTo(0, 0)
   })
 
   it('clamps orbit elevation', () => {
-    expect(cameraOffset('chase', 0, { yaw: 0, pitch: -90 }).y).toBeCloseTo(-18.66 * Math.sin((10 * Math.PI) / 180), 1)
+    expect(cameraOffset('chase', 0, { yaw: 0, pitch: -90 }).y).toBeCloseTo(-Math.hypot(16, 7.4, 39) * Math.sin((10 * Math.PI) / 180), 1)
   })
 })
 

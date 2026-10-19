@@ -45,9 +45,9 @@ export type CameraPreset = 'chase' | 'side' | 'top'
 
 /** Distance (m), azimuth from the tail (deg, + to the right) and elevation (deg) of each preset. */
 const PRESETS: Record<CameraPreset, { d: number; az: number; el: number; northUp?: boolean }> = {
-  chase: { d: Math.hypot(7, 3.2, 17), az: Math.atan2(7, 17) / RAD, el: Math.asin(3.2 / Math.hypot(7, 3.2, 17)) / RAD },
-  side: { d: 22, az: 90, el: 0 },
-  top: { d: 40, az: 0, el: 89, northUp: true },
+  chase: { d: Math.hypot(16, 7.4, 39), az: Math.atan2(16, 39) / RAD, el: Math.asin(7.4 / Math.hypot(16, 7.4, 39)) / RAD },
+  side: { d: 50, az: 90, el: 0 },
+  top: { d: 60, az: 0, el: 89, northUp: true },
 }
 
 /** Camera position relative to the aircraft, in the local frame, for a preset plus the user's orbit (deg). */

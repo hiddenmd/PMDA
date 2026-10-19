@@ -52,9 +52,9 @@ The data, the readouts and the playback behaviour stay as they are.
 
   | Preset | Placement |
   |---|---|
-  | Chase | 17 m behind, 7 m right, 3.2 m above, relative to the aircraft's heading |
-  | Side | 22 m to the right, level |
-  | Top | 40 m above, looking down, north-up |
+  | Chase | 39 m behind, 16 m right, 7.4 m above, relative to the aircraft's heading |
+  | Side | 50 m to the right, level |
+  | Top | 60 m above, looking down, north-up |
 
   - The camera follows with exponential damping (`1 − 0.05^dt`).
   - Drag orbits the camera around the aircraft (yaw ±180°, pitch −10°…80°); double-click or the reset
