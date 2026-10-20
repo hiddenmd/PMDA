@@ -9,6 +9,9 @@ public sealed class DatabaseOptions
 
     /// <summary>Create the database and run schema scripts on start (development convenience).</summary>
     public bool EnsureCreatedOnStart { get; set; }
+
+    /// <summary>Where the in-app database settings are saved. Default: %ProgramData%\PMDA\database.json.</summary>
+    public string? SettingsPath { get; set; }
 }
 
 public sealed class ImportsOptions
