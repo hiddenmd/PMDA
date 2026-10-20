@@ -9,8 +9,8 @@ import { NoPlayback } from './EmptyPanel'
 
 const LOOK_KEY = 'pmda-rwr-look'
 const LOOKS: { value: RwrLook; label: string }[] = [
-  { value: 'cockpit', label: 'Cockpit' },
   { value: 'tactical', label: 'Tactical' },
+  { value: 'cockpit', label: 'Cockpit' },
 ]
 
 export function ScopePanel() {
@@ -25,7 +25,7 @@ function ScopeView({ actor, flightId, customerId }: { actor: PlaybackActor; flig
   const releases = useReleases(flightId)
   const threats = useMemo(() => (profile ? buildThreats(view.emitters, profile) : []), [view.emitters, profile])
   const { position } = view
-  const [look, setLook] = useState<RwrLook>(() => (storage.get(LOOK_KEY) === 'tactical' ? 'tactical' : 'cockpit'))
+  const [look, setLook] = useState<RwrLook>(() => (storage.get(LOOK_KEY) === 'cockpit' ? 'cockpit' : 'tactical'))
   const chooseLook = (next: RwrLook) => {
     setLook(next)
     storage.set(LOOK_KEY, next)
