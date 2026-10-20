@@ -6,13 +6,15 @@ interface DialogProps {
   icon?: ReactNode
   onClose: () => void
   children: ReactNode
+  /** Room for a table (up to 760 px) instead of a form's 440 px. */
+  wide?: boolean
 }
 
 /**
  * Modal dialog on the native <dialog> element: focus trapping, Esc to close and the backdrop come
  * from the browser.
  */
-export function Dialog({ open, title, icon, onClose, children }: DialogProps) {
+export function Dialog({ open, title, icon, onClose, children, wide = false }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function Dialog({ open, title, icon, onClose, children }: DialogProps) {
   }, [open])
 
   return (
-    <dialog ref={ref} className="dialog" aria-labelledby="dialog-title" onClose={onClose} onCancel={onClose}>
+    <dialog ref={ref} className={wide ? 'dialog dialog--wide' : 'dialog'} aria-labelledby="dialog-title" onClose={onClose} onCancel={onClose}>
       {open && (
         <div className="dialog__body">
           <div className="dialog__title">

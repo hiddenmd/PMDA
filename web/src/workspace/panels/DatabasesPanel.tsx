@@ -168,7 +168,7 @@ export function DatabasesPanel() {
           />
         )}
       </Dialog>
-      <Dialog open={editing?.mode === 'find'} title="Find databases" icon={<Search size={18} aria-hidden />} onClose={() => setEditing(null)}>
+      <Dialog wide open={editing?.mode === 'find'} title="Find databases" icon={<Search size={18} aria-hidden />} onClose={() => setEditing(null)}>
         {editing?.mode === 'find' && (
           <FindDatabases defaultServer={databases.data?.databases[0]?.settings.server ?? 'localhost'} onAdded={applied} />
         )}

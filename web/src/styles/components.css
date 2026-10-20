@@ -130,7 +130,6 @@
 .find-databases {
   display: grid;
   gap: var(--space-md);
-  min-width: min(640px, 80vw);
 }
 .find-databases__form {
   display: grid;
@@ -396,6 +395,9 @@
   --hud-bracket: var(--color-primary);
   --hud-bracket-size: 8px;
   --hud-bracket-inset: 0px;
+}
+.dialog--wide {
+  width: min(760px, calc(100vw - 32px));
 }
 .dialog::backdrop {
   background: rgb(8 11 18 / 0.7);
