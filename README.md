@@ -20,25 +20,29 @@ docs/superpowers/   design spec and implementation plans
 - SQL Server. By default the API uses Windows authentication at `localhost` (`ConnectionStrings:Pmda`
   in `src/PMDA.Api/appsettings.json`). In Development it creates the `PMDA` database on start.
 
-### Database connection
+### Flight databases
 
-The connection can also be set up from the app, with no file editing and no restart:
+PMDA works with several SQL Server databases at once, on one or more servers:
 
-- **No database yet** (or the configured one is unreachable): PMDA opens a "Connect PMDA to SQL Server" form
-  instead of the login screen. It works only on the server machine itself, like creating the first administrator.
-  Other machines see a notice.
-- **Database working:** Admins open user menu → **Database…** from any machine.
+- The flight list shows the flights of every enabled database together.
+  - Each flight is labelled with its database, and Filters → Database narrows the list to one.
+  - If a database is down, the list still loads from the others and names the missing one.
+- Replay, messages, graphs and the map always read the flight's own database.
+- Imports go to the **import default**. When there is a choice, the import panel's **Import into** picker sends a
+  recording elsewhere.
+- **Read-only** databases are archives: they take no imports and no deletes, and PMDA never changes them.
+  They must already be PMDA databases.
+- Admins manage the list under user menu → **Manage databases**:
+  - add (optionally creating the database and its tables), edit, test, enable or disable, make default, remove;
+  - removing only takes a database off the list: the database and its flights stay on the server;
+  - authentication is Windows (the account the API runs as) or a SQL Server login.
+- "Delete all flights" works on one database at a time.
 
-The form tests the connection, can create the database, runs the schema scripts, saves the settings and switches
-the running API over. You can use Windows authentication (the account the API runs as) or a SQL Server login.
-Switching to a *different* database signs everyone out, because sessions belong to the database. The change is
-refused while imports are running.
-
-The settings are saved in `%ProgramData%\PMDA\database.json` (override with `Database:SettingsPath`). That file
-overrides `ConnectionStrings:Pmda`, and only Administrators, SYSTEM and the API's account can read it. A SQL login
-password is encrypted with Windows DPAPI (machine scope) and is never sent back to the browser. To return to
-`appsettings.json`, delete the file and restart the API. Without either, the API starts anyway: `/api/*` answers
-503 "Database not configured" until the database is set up.
+The list is saved in `%ProgramData%\PMDA\databases.json` (override with `Database:RegistryPath`).
+- Only Administrators, SYSTEM and the API's account can read it.
+- SQL login passwords are encrypted with Windows DPAPI (machine scope) and never sent back to the browser.
+- Until an admin first changes the list there is no file: the connection PMDA used before (`ConnectionStrings:Pmda`,
+  or an earlier version's `database.json`) is listed as **Main**.
 
 ## Run
 
@@ -88,8 +92,11 @@ the offline setup or no base map.
 
 ## Accounts
 
-PMDA has its own user accounts (roles **Admin** and **Analyst**). On first start, with no users in the
-database, open PMDA **on the server machine** and create the administrator; the first-run screen is refused
+PMDA has its own user accounts (roles **Admin** and **Analyst**), kept in `%ProgramData%\PMDA\users.json`
+(`Auth:UsersPath`; same file protection as the database list), so signing in never depends on a flight database.
+Accounts from earlier versions (the `dbo.AppUser` table) are copied there once, on the first start. While that
+database can't be reached, sign-in waits for it instead of offering first-run setup. On first start with no
+users at all, open PMDA **on the server machine** and create the administrator; the first-run screen is refused
 from other machines. Admins add users, change roles, deactivate accounts and reset passwords (user menu →
 Manage users) and are the only ones who can delete flights. Five wrong passwords lock an account for
 15 minutes (or until an admin resets the password).
