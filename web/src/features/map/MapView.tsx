@@ -122,6 +122,21 @@ export function MapView(props: MapViewProps) {
         })
         mapRef.current = map
         map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left')
+        // The data credits (required by the tile and terrain licences) start folded into the ⓘ button rather than
+        // covering the map. MapLibre opens them once, when they first fill in: fold them that one time, then leave
+        // the button to the user.
+        const credits = container.querySelector('.maplibregl-ctrl-attrib')
+        if (credits) {
+          const fold = () => {
+            if (!credits.classList.contains('maplibregl-compact-show')) return
+            credits.classList.remove('maplibregl-compact-show')
+            foldOnce.disconnect()
+          }
+          const foldOnce = new MutationObserver(fold)
+          foldOnce.observe(credits, { attributes: true, attributeFilter: ['class'] })
+          observers.push(foldOnce)
+          fold()
+        }
         map.on('dragstart', () => live.current.onFollowChange(false))
 
         // Fires for the first style and again after every theme change, which replaces the style and with it every
