@@ -74,7 +74,7 @@ public sealed record TrackRecipe
     public List<int> Update { get; init; } = new();
     public List<int> Delete { get; init; } = new();
     public List<int> Extension { get; init; } = new();
-    public StatusCodes? Status { get; init; }
+    public TrackStatus? Status { get; init; }
     /// <summary>Field of the delete event copied to <see cref="DeleteCodeTo"/>.</summary>
     public string? DeleteCodeFrom { get; init; }
     public string? DeleteCodeTo { get; init; }
@@ -83,7 +83,7 @@ public sealed record TrackRecipe
     public Dictionary<string, string> AttachNav { get; init; } = new();
 }
 
-public sealed record StatusCodes
+public sealed record TrackStatus
 {
     public required string Field { get; init; }
     public int New { get; init; }

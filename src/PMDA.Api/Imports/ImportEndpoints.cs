@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using PMDA.Api.Contracts;
 using PMDA.Api.Database;
+using PMDA.Api.Formats;
+using PMDA.Parsers.Sample;
 
 namespace PMDA.Api.Imports;
 
@@ -33,9 +35,18 @@ public static class ImportEndpoints
     }
 
     private static async Task<Results<Accepted<ImportJobDto>, ProblemHttpResult>> Upload(
-        IFormFile file, [FromForm(Name = "databaseId")] string? databaseId, ImportService imports, FlightStores stores,
-        IOptions<ImportsOptions> options, CancellationToken ct)
+        IFormFile file, [FromForm(Name = "databaseId")] string? databaseId, [FromForm(Name = "format")] string? format,
+        ImportService imports, FlightStores stores, FormatProjectStore formats, IOptions<ImportsOptions> options, CancellationToken ct)
     {
+        // A header-defined project, the built-in sample format, or empty to detect it from the file.
+        var formatId = string.IsNullOrWhiteSpace(format) || format.Equals("auto", StringComparison.OrdinalIgnoreCase) ? null : format.Trim();
+        if (formatId is not null && !formatId.Equals(SampleFormat.CustomerId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (formats.Find(formatId) is null)
+                return TypedResults.Problem($"There is no format '{formatId}'.", statusCode: StatusCodes.Status400BadRequest);
+            if (formats.Current(formatId) is not { Format.CanImport: true })
+                return TypedResults.Problem($"The format '{formatId}' has no header yet or its header has errors.", statusCode: StatusCodes.Status400BadRequest);
+        }
         // The chosen database, else the import default; never a read-only or disabled one.
         var target = string.IsNullOrWhiteSpace(databaseId) ? stores.ImportDefault : stores.Get(databaseId.Trim());
         if (target is null)
@@ -50,7 +61,7 @@ public static class ImportEndpoints
             return TypedResults.Problem($"The file is larger than {options.Value.MaxUploadBytes} bytes.", statusCode: StatusCodes.Status413PayloadTooLarge);
 
         await using var content = file.OpenReadStream();
-        var result = await imports.SubmitAsync(content, file.FileName, file.Length, target, ct);
+        var result = await imports.SubmitAsync(content, file.FileName, file.Length, target, ct, formatId);
         if (result.Status == SubmitStatus.QueueFull)
             return TypedResults.Problem("The import queue is full. Try again later.", statusCode: StatusCodes.Status503ServiceUnavailable);
 

@@ -15,7 +15,7 @@ public sealed class ImportService(
     IOptions<ImportsOptions> options,
     TimeProvider time)
 {
-    public async Task<SubmitResult> SubmitAsync(Stream content, string fileName, long sizeBytes, FlightStore target, CancellationToken ct)
+    public async Task<SubmitResult> SubmitAsync(Stream content, string fileName, long sizeBytes, FlightStore target, CancellationToken ct, string? formatId = null)
     {
         var id = Guid.NewGuid();
         var directory = options.Value.ResolvedTempDirectory;
@@ -33,7 +33,7 @@ public sealed class ImportService(
             throw;
         }
 
-        var job = new ImportJob(id, Path.GetFileName(fileName), sizeBytes, tempPath, time, target.Id, target.Name);
+        var job = new ImportJob(id, Path.GetFileName(fileName), sizeBytes, tempPath, time, target.Id, target.Name) { FormatId = formatId };
         notifier.Watch(job);
         // In the store before the worker can see it, so GET never misses a running job.
         store.Add(job);

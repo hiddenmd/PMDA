@@ -1,3 +1,4 @@
+using PMDA.Data.Formats;
 using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -100,6 +101,9 @@ public sealed class FlightRepository(IConnectionSource connection)
 
         foreach (var id in ids)
         {
+            // Typed tables and raw records of header-defined formats first: once the events are gone the flight row
+            // goes straight after.
+            await conn.ExecuteAsync(new CommandDefinition(SqlFormatRowSink.DeleteFlightSql, new { id }, commandTimeout: 0, cancellationToken: ct));
             int removed;
             do
             {
@@ -132,6 +136,7 @@ public sealed class FlightRepository(IConnectionSource connection)
             TRUNCATE TABLE dbo.ImportDiagnostic;
             DELETE dbo.Flight;
             """, transaction: tx, commandTimeout: 0, cancellationToken: ct));
+        await conn.ExecuteAsync(new CommandDefinition(SqlFormatRowSink.TruncateAllSql, transaction: tx, commandTimeout: 0, cancellationToken: ct));
         await tx.CommitAsync(ct);
         return count;
     }
@@ -209,6 +214,10 @@ public sealed class FlightRepository(IConnectionSource connection)
     public async Task<int> FailInterruptedImportsAsync(CancellationToken ct)
     {
         await using var conn = new SqlConnection(connection.Value);
+        var interrupted = await conn.QueryAsync<Guid>(new CommandDefinition(
+            "SELECT FlightId FROM dbo.Flight WHERE Status = @Importing;", new { Importing = (byte)FlightStatus.Importing }, cancellationToken: ct));
+        foreach (var id in interrupted)
+            await conn.ExecuteAsync(new CommandDefinition(SqlFormatRowSink.DeleteFlightSql, new { id }, commandTimeout: 0, cancellationToken: ct));
         return await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
             DELETE e FROM dbo.FlightEvent e
             JOIN dbo.Flight f ON f.FlightId = e.FlightId

@@ -24,6 +24,7 @@ public static class ImportsModule
         services.AddSingleton(new AdapterDetector([new SampleAdapter()]));
         services.AddSingleton(new DecoderRegistry().AddSampleDecoders());
         services.AddSingleton<FlightImporter>();
+        services.AddSingleton<FormatFlightImporter>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<ImportJobStore>();

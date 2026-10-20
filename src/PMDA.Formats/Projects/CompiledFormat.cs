@@ -230,7 +230,7 @@ public sealed partial class CompiledFormat
 
     private static List<ColumnDef> UniqueColumns(IEnumerable<ColumnDef> columns)
     {
-        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FlightId", "RecordSeq", "TimeUtc", "EventId" };
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FlightId", "RecordSeq", "TimeUtc", "EventId", "FormatVersion", "Idx" };
         return columns.Select(c => used.Add(c.Name) ? c : c with { Name = Unique(c.Name, used) }).ToList();
     }
 }

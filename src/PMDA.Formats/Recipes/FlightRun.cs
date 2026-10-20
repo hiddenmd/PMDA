@@ -8,7 +8,8 @@ using PMDA.Formats.Projects;
 namespace PMDA.Formats.Recipes;
 
 /// <summary>What a raw dump says about its flight before the events are read.</summary>
-public sealed record FlightInfo(DateTime Date, string Tail, bool DateFound);
+/// <param name="FirstTime">Header time of the first record, if any.</param>
+public sealed record FlightInfo(DateTime Date, string Tail, bool DateFound, long? FirstTime = null);
 
 /// <summary>Turns the header's time-of-day ticks into UTC, moving to the next day when the clock wraps at midnight.</summary>
 public sealed class FlightClock(DateTime date, double unitSeconds)
@@ -46,8 +47,10 @@ public static class FlightRun
         try
         {
             var n = 0;
+            long? first = null;
             foreach (var record in RecordReader.Read(stream, frame, NoDiagnostics.Instance, CancellationToken.None))
             {
+                first ??= record.Time;
                 if (++n > maxRecords)
                     break;
                 if (!format.Decoders.TryGetValue(record.EventId, out var decoder) || decoder.Plan.Key != plan.Key)
@@ -60,11 +63,11 @@ public static class FlightRun
                 {
                     var fullYear = (int)y < 100 ? info.YearBase + (int)y : (int)y;
                     if (fullYear is >= 1900 and <= 2200 && dd <= DateTime.DaysInMonth(fullYear, (int)m))
-                        return new FlightInfo(new DateTime(fullYear, (int)m, (int)dd), tail.Trim(), true);
+                        return new FlightInfo(new DateTime(fullYear, (int)m, (int)dd), tail.Trim(), true, first);
                 }
-                return new FlightInfo(fallback, tail.Trim(), false);
+                return new FlightInfo(fallback, tail.Trim(), false, first);
             }
-            return new FlightInfo(fallback, "", false);
+            return new FlightInfo(fallback, "", false, first);
         }
         finally
         {

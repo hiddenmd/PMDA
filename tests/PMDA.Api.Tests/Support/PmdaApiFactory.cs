@@ -29,6 +29,9 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
     /// <summary>This host's own user accounts file (in the same temporary folder).</summary>
     public string UsersPath => Path.Combine(Path.GetDirectoryName(SettingsPath)!, "users.json");
 
+    /// <summary>This host's own header-defined format projects.</summary>
+    public string FormatsDirectory => Path.Combine(Path.GetDirectoryName(SettingsPath)!, "formats");
+
     /// <summary>This host's own list of flight databases (none until a test writes one: then the connection string is "main").</summary>
     public string RegistryPath => Path.Combine(Path.GetDirectoryName(SettingsPath)!, "databases.json");
 
@@ -42,6 +45,7 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
         builder.UseSetting("Auth:MigrateUsersFromSql", "false");
         builder.UseSetting("Database:EnsureCreatedOnStart", "false");
         builder.UseSetting("Imports:TempDirectory", UploadDirectory);
+        builder.UseSetting("Formats:Directory", FormatsDirectory);
         foreach (var (key, value) in Settings)
             builder.UseSetting(key, value);
         foreach (var (key, value) in settings ?? new Dictionary<string, string?>())
@@ -100,12 +104,14 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
         File.WriteAllText(RegistryPath, JsonSerializer.Serialize(registry, Json));
     }
 
-    public async Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] content, string fileName = "flight.bin", string? databaseId = null)
+    public async Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] content, string fileName = "flight.bin", string? databaseId = null, string? format = null)
     {
         using var form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(content), "file", fileName);
         if (databaseId is not null)
             form.Add(new StringContent(databaseId), "databaseId");
+        if (format is not null)
+            form.Add(new StringContent(format), "format");
         return await client.PostAsync("/api/imports", form);
     }
 

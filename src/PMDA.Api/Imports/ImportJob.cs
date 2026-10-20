@@ -57,6 +57,8 @@ public sealed class ImportJob
     }
 
     public Guid Id { get; }
+    /// <summary>The recording format chosen at upload (a header-defined project id or SAMPLE); null detects it.</summary>
+    public string? FormatId { get; init; }
     /// <summary>The flight database the recording is imported into.</summary>
     public string? DatabaseId { get; }
     public string? DatabaseName { get; }

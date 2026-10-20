@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PMDA.Core\PMDA.Core.csproj" />
+    <ProjectReference Include="..\PMDA.Formats\PMDA.Formats.csproj" />
   </ItemGroup>
 
   <ItemGroup>

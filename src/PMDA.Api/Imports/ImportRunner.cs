@@ -1,13 +1,20 @@
 using Microsoft.Extensions.Options;
 using PMDA.Api.Database;
+using PMDA.Api.Formats;
 using PMDA.Data;
+using PMDA.Data.Formats;
 using PMDA.Import;
+using PMDA.Parsers;
+using PMDA.Parsers.Sample;
 
 namespace PMDA.Api.Imports;
 
 /// <summary>Runs one queued job to a final state and always removes its uploaded file.</summary>
 public sealed class ImportRunner(
     FlightImporter importer,
+    FormatFlightImporter formatImporter,
+    FormatProjectStore formats,
+    AdapterDetector adapters,
     FlightStores stores,
     IOptions<ImportsOptions> options,
     ILogger<ImportRunner> logger)
@@ -62,7 +69,19 @@ public sealed class ImportRunner(
         {
             var sink = new SqlEventSink(store.ConnectionString!, _writeGate);
             var importOptions = new ImportOptions { MaxParallelWrites = options.Value.SqlWriteStreams };
-            result = await importer.ImportAsync(file, job.FileName, sink, importOptions, new InlineProgress(job.ReportProgress), ct);
+            var progress = new InlineProgress(job.ReportProgress);
+            if (HeaderDefined(job, file) is { } format)
+            {
+                var rows = new SqlFormatRowSink(store.ConnectionString!, _writeGate);
+                result = await formatImporter.ImportAsync(file, job.FileName, format.Format, format.Version, format.Header, sink, rows, importOptions, progress, ct);
+            }
+            else
+            {
+                result = await importer.ImportAsync(file, job.FileName, sink, importOptions with
+                {
+                    CustomerId = job.FormatId is { } id && id.Equals(SampleFormat.CustomerId, StringComparison.OrdinalIgnoreCase) ? SampleFormat.CustomerId : null,
+                }, progress, ct);
+            }
         }
 
         // A header means the sink created the flight row, so diagnostics have a flight to belong to.
@@ -84,6 +103,19 @@ public sealed class ImportRunner(
                 job.Fail(result.FailureReason ?? "Import failed.", flightExists ? result.FlightId : null);
                 break;
         }
+    }
+
+    /// <summary>
+    /// The header-defined project for this upload: the one chosen, else the one whose records the file starts with when
+    /// no built-in format recognizes it. Null means the built-in importer handles it.
+    /// </summary>
+    private FormatCurrent? HeaderDefined(ImportJob job, Stream file)
+    {
+        if (job.FormatId is { } id)
+            return id.Equals(SampleFormat.CustomerId, StringComparison.OrdinalIgnoreCase) ? null : formats.Current(id);
+        if (adapters.Detect(file) is not null)
+            return null;
+        return formats.Detect(file);
     }
 
     private void DeleteUpload(ImportJob job)

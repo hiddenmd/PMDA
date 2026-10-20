@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using PMDA.Data;
+using PMDA.Data.Formats;
 
 namespace PMDA.Api.Tests.Support;
 
@@ -35,7 +36,7 @@ public sealed class SqlDatabase : IAsyncLifetime
             await using var conn = new SqlConnection(cs);
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(
-                "DELETE dbo.ImportDiagnostic; DELETE dbo.FlightEvent; DELETE dbo.Flight;", conn);
+                "DELETE dbo.ImportDiagnostic; DELETE dbo.FlightEvent; DELETE dbo.Flight;" + SqlFormatRowSink.TruncateAllSql, conn);
             await cmd.ExecuteNonQueryAsync();
         }
     }
