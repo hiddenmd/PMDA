@@ -11,7 +11,8 @@ internal sealed record Scenario(
     string Mission,
     int CorruptRecords = 0,
     bool TruncateEnd = false,
-    int EmitterRateHz = 20)
+    int EmitterRateHz = 20,
+    SortiePlan? Sortie = null)
 {
     public static readonly Scenario[] Standard =
     [
@@ -24,5 +25,7 @@ internal sealed record Scenario(
             CorruptRecords: 25, TruncateEnd: true),
         new("long-mission", "6 h patrol over a large area, 120 emitters (~10 million records)",
             TimeSpan.FromHours(6), Emitters: 120, Seed: 404, Tail: "OSCAR-90", Mission: "PATROL-9", EmitterRateHz: 50),
+        new("desert-range", "Range sortie in Jordan: takeoff from Queen Alia, low-level run past 14 simulated threat sites in the eastern desert, landing",
+            TimeSpan.FromMinutes(100), Emitters: 14, Seed: 505, Tail: "FALCON-11", Mission: "RANGE-3", Sortie: SortiePlan.JordanRange),
     ];
 }

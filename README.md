@@ -77,6 +77,7 @@ dotnet run --project tools/PMDA.SampleGen -c Release -- --all samples
 | `dense-threat.bin` | 45 min, 30 emitters, ~150 k records |
 | `corrupt-records.bin` | 10 min, 25 corrupt records + truncated end (26 parse problems) |
 | `long-mission.bin` | 6 h, 120 emitters, ~11.7 M records (~440 MB) |
+| `desert-range.bin` | 35 min range sortie in Jordan: takeoff and landing at Queen Alia, climb to FL250, low-level run past 14 simulated threat sites in the eastern desert (~70 k records) |
 
 `--list` shows the scenarios; `--scenario <name> <file>` writes one.
 

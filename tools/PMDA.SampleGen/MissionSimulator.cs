@@ -29,9 +29,14 @@ internal sealed class MissionSimulator(Scenario scenario)
 
     public Result Write(string path)
     {
-        var start = new DateTime(2026, 3, 14, 9, 30, 0, DateTimeKind.Utc).AddMinutes(scenario.Seed % 120);
-        var emitters = Enumerable.Range(1, scenario.Emitters).Select(CreateEmitter).ToArray();
-        var route = CreateRoute();
+        // A sortie flies a planned route from an airfield past fixed sites; otherwise laps of a random area.
+        var plan = scenario.Sortie;
+        var start = plan?.StartUtc ?? new DateTime(2026, 3, 14, 9, 30, 0, DateTimeKind.Utc).AddMinutes(scenario.Seed % 120);
+        var emitters = plan is null
+            ? Enumerable.Range(1, scenario.Emitters).Select(id => CreateEmitter(id)).ToArray()
+            : plan.Threats.Select((site, i) => CreateEmitter(i + 1, site)).ToArray();
+        var route = plan is null ? CreateRoute() : null;
+        var sortie = plan is null ? null : new SortieFlight(plan);
 
         var ticks = (long)(scenario.Duration.TotalSeconds / TickSeconds);
         var emitterEvery = Math.Max(1, (int)Math.Round(1 / (scenario.EmitterRateHz * TickSeconds)));
@@ -45,10 +50,10 @@ internal sealed class MissionSimulator(Scenario scenario)
             var w = new SampleFormatWriter(file);
             w.WriteHeader(start, scenario.Tail, scenario.Mission);
 
-            var (lat, lon) = route[0];
-            var heading = Geo.BearingDeg(lat, lon, route[1].Lat, route[1].Lon);
+            var (lat, lon) = route?[0] ?? (sortie!.Lat, sortie.Lon);
+            var heading = route is null ? sortie!.HeadingDeg : Geo.BearingDeg(lat, lon, route[1].Lat, route[1].Lon);
             var waypoint = 1;
-            var alt = 3_000.0;
+            var alt = sortie?.AltM ?? 3_000.0;
             var nextChaff = 0.0;
             var chaff = new Store(1, ChaffLoad, AlertKind.ChaffLow, AlertKind.ChaffOut);
             var flares = new Store(2, FlareLoad, AlertKind.FlaresLow, AlertKind.FlaresOut);
@@ -59,17 +64,27 @@ internal sealed class MissionSimulator(Scenario scenario)
                 var t = tick * TickSeconds;
                 var offset = TimeSpan.FromSeconds(t);
 
-                // Fly toward the current waypoint with a limited turn rate.
-                var (wLat, wLon) = route[waypoint];
-                if (Geo.DistanceM(lat, lon, wLat, wLon) < 2_000)
+                if (sortie is not null)
                 {
-                    waypoint = (waypoint + 1) % route.Length;
-                    (wLat, wLon) = route[waypoint];
+                    // The recording ends once the aircraft has landed and slowed to taxi speed.
+                    if (!sortie.Step(TickSeconds, Noise))
+                        break;
+                    (lat, lon, alt, heading) = (sortie.Lat, sortie.Lon, sortie.AltM, sortie.HeadingDeg);
                 }
-                var turn = Math.Clamp(Geo.Delta(heading, Geo.BearingDeg(lat, lon, wLat, wLon)), -MaxTurnDegPerSec * TickSeconds, MaxTurnDegPerSec * TickSeconds);
-                heading = Geo.Normalize(heading + turn);
-                (lat, lon) = Geo.Move(lat, lon, heading, AircraftSpeedMs * TickSeconds);
-                alt += (Math.Sin(t / 90) * 600 + 3_500 - alt) * 0.01 + Noise(2);
+                else
+                {
+                    // Fly toward the current waypoint with a limited turn rate.
+                    var (wLat, wLon) = route![waypoint];
+                    if (Geo.DistanceM(lat, lon, wLat, wLon) < 2_000)
+                    {
+                        waypoint = (waypoint + 1) % route.Length;
+                        (wLat, wLon) = route[waypoint];
+                    }
+                    var turn = Math.Clamp(Geo.Delta(heading, Geo.BearingDeg(lat, lon, wLat, wLon)), -MaxTurnDegPerSec * TickSeconds, MaxTurnDegPerSec * TickSeconds);
+                    heading = Geo.Normalize(heading + turn);
+                    (lat, lon) = Geo.Move(lat, lon, heading, AircraftSpeedMs * TickSeconds);
+                    alt += (Math.Sin(t / 90) * 600 + 3_500 - alt) * 0.01 + Noise(2);
+                }
 
                 w.WriteNavigation(offset, lat, lon, (float)alt);
                 records++;
@@ -197,11 +212,14 @@ internal sealed class MissionSimulator(Scenario scenario)
             w.WriteGarbage([0xDE, 0xAD, 0xBE, 0xEF, 0x5A, 0x00, 0x13, 0x37]);
     }
 
-    private Emitter CreateEmitter(int id)
+    /// <param name="site">A fixed site (sorties); otherwise a random position and family in the patrol area.</param>
+    private Emitter CreateEmitter(int id, ThreatSite? site = null)
     {
-        var (lat, lon) = Geo.Move(CenterLat, CenterLon, _random.NextDouble() * 360, Math.Sqrt(_random.NextDouble()) * AreaRadiusM);
+        var (lat, lon) = site is null
+            ? Geo.Move(CenterLat, CenterLon, _random.NextDouble() * 360, Math.Sqrt(_random.NextDouble()) * AreaRadiusM)
+            : (site.Lat, site.Lon);
         // A few radar families so the data has realistic clusters.
-        var family = _random.Next(4);
+        var family = site?.Family ?? _random.Next(4);
         var (freq, pri, pw, range) = family switch
         {
             0 => (2_900 + _random.Next(200), 2_500 + _random.Next(1_500), 20 + _random.Next(15), 150_000),  // early warning
