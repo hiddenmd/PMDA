@@ -11,7 +11,7 @@
   font-size: var(--fs-label-lg);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   line-height: 1;
   border-radius: var(--radius-control);
   border: 1px solid transparent;
@@ -193,7 +193,7 @@
   font-size: var(--fs-label-md);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   border-radius: var(--radius-control);
   color: var(--color-muted-foreground);
   background: transparent;
@@ -218,7 +218,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   color: var(--color-muted-foreground);
   border: 1px solid currentColor;
   border-radius: var(--radius-control);
@@ -257,7 +257,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   color: var(--color-muted-foreground);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
@@ -330,7 +330,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   color: var(--color-muted-foreground);
 }
 .menu__item {
@@ -510,7 +510,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   color: var(--color-muted-foreground);
 }
 .table td.num,
@@ -572,7 +572,7 @@
   font-size: var(--fs-md);
   font-family: var(--font-display);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
 }
 
 .threat-critical {

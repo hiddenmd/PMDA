@@ -50,21 +50,37 @@ a daylight variant. Full rationale and values: `docs/superpowers/specs/2026-10-1
   - Confirmation for destructive actions.
   - Never colour alone.
 
+### Light theme v4: Neutral Pro (2026-10-20, overrides v3's daylight variant)
+
+The v3 light theme was the HUD with inverted colours (blue-tinted greys, condensed uppercase, brackets) and read
+as washed out. Chosen with the user: light is a professional analysis tool in the Linear / Grafana / Fluent
+idiom; **dark stays the Tactical HUD unchanged.**
+
+- Neutral greys (no blue tint); white panels on a `#F4F5F7` canvas; one blue accent.
+- The HUD idiom is tokenised and off in light: `--display-case: none` (sentence case), `--font-display` =
+  IBM Plex Sans, `--tracking-display: 0`, `--hud-bracket-display: none`, `--hud-glow: 0`; radius 6 px
+  (controls) / 8 px (floating surfaces).
+- Light-only component rules in `web/src/styles/theme-light.css`: solid primary buttons; white secondary
+  buttons and inputs with a focus ring; raised-white segmented selection; soft-filled pill chips; active tab
+  underlined; current list row marked by a 3 px left bar; table row hover.
+- Timeline density bars at `--timeline-bar-alpha: 0.55` (alert marks full strength); the clock in text colour.
+- Data series tuned for white: navigation `#2563EB`, emitters `#D08700`, countermeasures `#DC2626`.
+
 ### Tokens
 
-| Token | Dark (default) | Light |
+| Token | Dark (default) | Light (v4 Neutral Pro) |
 |---|---|---|
-| `--color-background` | `#080B12` | `#EEF2F7` |
+| `--color-background` | `#080B12` | `#F4F5F7` |
 | `--color-card` | `#0A0F19` | `#FFFFFF` |
-| `--color-panel-header` | `#0D1524` | `#E7EDF5` |
-| `--color-muted` | `#0F1726` | `#E3E9F1` |
-| `--color-border` / `-strong` | `#1A2436` / `#22324D` | `#C9D3E0` / `#9FB0C6` |
-| `--color-foreground` | `#CFD8E6` | `#0B1A33` |
-| `--color-muted-foreground` | `#8FA3BF` | `#475A75` |
-| `--color-primary` | `#4CC3FF` | `#0369A1` |
-| `--color-accent` | `#FFC247` | `#92400E` |
-| `--color-destructive` | `#FF5A5A` | `#B91C1C` |
-| `--color-alert-warning` | `#FB923C` | `#9A3412` |
+| `--color-panel-header` | `#0D1524` | `#FAFAFB` |
+| `--color-muted` / `--color-hover` | `#0F1726` / `#14203A` | `#F1F2F4` / `#E9EBEF` |
+| `--color-border` / `-strong` | `#1A2436` / `#22324D` | `#E4E6EB` / `#CFD3DA` |
+| `--color-foreground` | `#CFD8E6` | `#16181D` |
+| `--color-muted-foreground` | `#8FA3BF` | `#555C69` |
+| `--color-primary` | `#4CC3FF` | `#1D5BD8` |
+| `--color-accent` | `#FFC247` | `#94540A` |
+| `--color-destructive` | `#FF5A5A` | `#B42318` |
+| `--color-alert-warning` | `#FB923C` | `#A3480A` |
 | `--color-success` | `#4ADE80` | `#166534` |
 
 Spacing (× `--ui-scale`): 2, 4, 8, 12, 16, 24, 32 px. Radius 2 px. Control height 30 px (compact 26 px).

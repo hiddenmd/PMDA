@@ -49,6 +49,8 @@ export function Timeline({ overview, alerts, positionMs, durationMs, startUtc, o
       // Square root keeps quiet stretches visible next to dense ones.
       const max = Math.sqrt(Math.max(1, ...totals))
       const barWidth = rect.width / overview.buckets
+      // The light theme tints the density bars down so they read as a backdrop; alert marks stay full strength.
+      ctx.globalAlpha = Number(css.getPropertyValue('--timeline-bar-alpha').trim()) || 1
 
       for (let i = 0; i < overview.buckets; i++) {
         let y = rect.height
@@ -63,6 +65,7 @@ export function Timeline({ overview, alerts, positionMs, durationMs, startUtc, o
         }
       }
 
+      ctx.globalAlpha = 1
       // Warnings first so missile lines draw on top of them.
       const span = Math.max(1, durationMs)
       for (const severity of ['warning', 'critical'] as const) {

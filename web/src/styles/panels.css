@@ -308,7 +308,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   color: var(--color-muted-foreground);
 }
 .kpi__value {
@@ -349,7 +349,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   color: var(--color-muted-foreground);
 }
 .readout dd {
@@ -577,7 +577,7 @@
   font-size: var(--fs-label-md);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   color: var(--color-muted-foreground);
   background: transparent;
   border: 0;
@@ -616,7 +616,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-muted-foreground);
 }
@@ -908,7 +908,7 @@
   font-size: var(--fs-label);
   font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--display-case);
   white-space: nowrap;
 }
 .map-site__diamond {

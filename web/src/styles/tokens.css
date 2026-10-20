@@ -46,6 +46,9 @@
   /* HUD: bracket colour (dimmed in unfocused dock groups) and glow radius for live elements */
   --hud-bracket: var(--color-primary);
   --hud-glow: 6px;
+  /* The HUD idiom (condensed uppercase labels, corner brackets) as tokens, so the light theme can drop it. */
+  --display-case: uppercase;
+  --hud-bracket-display: block;
 
   /* Type: Saira Condensed (labels), IBM Plex Sans (body), IBM Plex Mono (numbers); all bundled */
   --font-display: 'Saira Condensed', 'Arial Narrow', system-ui, sans-serif;
@@ -86,36 +89,47 @@
 }
 
 :root[data-theme='light'] {
-  --color-background: #eef2f7;
+  /* Neutral Pro: a professional light tool (Linear / Grafana / Fluent idiom), not a daylight HUD. Neutral greys,
+     white panels on a grey canvas, one blue accent, sentence-case labels, no brackets or glow. */
+  --color-background: #f4f5f7;
   --color-card: #ffffff;
-  --color-panel-header: #e7edf5;
-  --color-muted: #e3e9f1;
-  --color-hover: #d9e3ef;
-  --color-border: #c9d3e0;
-  --color-border-strong: #9fb0c6;
-  --color-foreground: #0b1a33;
-  --color-muted-foreground: #475a75;
-  --color-primary: #0369a1;
+  --color-panel-header: #fafafb;
+  --color-muted: #f1f2f4;
+  --color-hover: #e9ebef;
+  --color-border: #e4e6eb;
+  --color-border-strong: #cfd3da;
+  --color-foreground: #16181d;
+  --color-muted-foreground: #555c69;
+  --color-primary: #1d5bd8;
   --color-on-primary: #ffffff;
-  --color-selection: rgb(3 105 161 / 0.1);
-  --color-link: #0369a1;
-  --color-ring: #0369a1;
-  --color-accent: #92400e;
+  --color-selection: rgb(29 91 216 / 0.08);
+  --color-link: #1d4ed8;
+  --color-ring: #2563eb;
+  --color-accent: #94540a;
   --color-on-accent: #ffffff;
   --color-success: #166534;
-  --color-destructive: #b91c1c;
-  --color-destructive-solid: #b91c1c;
+  --color-destructive: #b42318;
+  --color-destructive-solid: #c8281c;
   --color-on-destructive: #ffffff;
-  --color-series-emitter: #b45309;
-  --color-series-countermeasure: #b91c1c;
-  --color-series-navigation: #1d4ed8;
-  --color-series-4: #6d28d9;
-  --color-series-5: #047857;
-  --color-series-6: #be185d;
-  --color-alert-critical: #b91c1c;
-  --color-alert-warning: #9a3412;
-  --shadow-popover: 0 8px 28px rgb(11 26 51 / 0.14), 0 2px 6px rgb(11 26 51 / 0.08);
+  --color-series-emitter: #d08700;
+  --color-series-countermeasure: #dc2626;
+  --color-series-navigation: #2563eb;
+  --color-series-4: #7c3aed;
+  --color-series-5: #059669;
+  --color-series-6: #db2777;
+  --color-alert-critical: #b42318;
+  --color-alert-warning: #a3480a;
+  --shadow-popover: 0 12px 32px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
   --hud-glow: 0px;
+
+  /* The HUD idiom is off: sentence-case labels in the body face, no corner brackets, softer corners. */
+  --display-case: none;
+  --timeline-bar-alpha: 0.55;
+  --font-display: var(--font-sans);
+  --tracking-display: 0;
+  --hud-bracket-display: none;
+  --radius-control: 6px;
+  --radius-panel: 8px;
 
   color-scheme: light;
 }
