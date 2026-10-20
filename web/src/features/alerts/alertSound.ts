@@ -24,7 +24,8 @@ const PATTERNS: Record<TonePattern, Note[]> = {
   ],
 }
 
-const VOLUME = 0.05
+// Square waves are harsh: 0.15 (about -16 dBFS) is clearly audible without drowning the voice warnings.
+const VOLUME = 0.15
 
 /**
  * Plays alert tones and voice warnings. A more severe warning cuts off a lesser one; a lesser one
