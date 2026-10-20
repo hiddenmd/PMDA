@@ -240,6 +240,16 @@
   color: var(--color-muted-foreground);
   white-space: nowrap;
 }
+/* Import panel: which database the next files go to. */
+.import-target {
+  margin-bottom: var(--space-sm);
+}
+/* Which database a flight lives in (shown when there are several). */
+.flight-item__db {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-primary);
+}
 .selection-bar {
   display: flex;
   align-items: center;

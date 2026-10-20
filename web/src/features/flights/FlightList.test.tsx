@@ -14,6 +14,8 @@ const flight = (overrides: Partial<FlightSummary>): FlightSummary => ({
   eventCount: 1_500_000,
   errorCount: 0,
   importedUtc: '2026-10-17T08:00:00Z',
+  databaseId: 'main',
+  databaseName: 'Main',
   ...overrides,
 })
 
@@ -39,6 +41,12 @@ describe('FlightItems', () => {
     expect(b).toHaveAttribute('aria-current', 'true')
     expect(b).toHaveTextContent('Failed')
     expect(b).toHaveTextContent('3 prob')
+  })
+
+  it('names each flight\'s database when there are several', () => {
+    render(<FlightItems flights={[flight({ id: 'a', databaseName: 'Main' }), flight({ id: 'b', databaseName: 'Archive 2025' })]} selectedId={null} onSelect={vi.fn()} showDatabase />)
+    expect(screen.getByText('Archive 2025')).toBeInTheDocument()
+    expect(screen.getByText('Main')).toBeInTheDocument()
   })
 
   it('selects a flight by mouse or keyboard', async () => {

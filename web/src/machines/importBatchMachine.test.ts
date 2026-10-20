@@ -16,7 +16,7 @@ function harness() {
   const cancels: string[] = []
   const file = importMachine.provide({
     actors: {
-      upload: fromCallback<ImportEvent, { file: File }>(({ input, sendBack }) => {
+      upload: fromCallback<ImportEvent, { file: File; databaseId: string | null }>(({ input, sendBack }) => {
         const upload = { name: input.file.name, sendBack, aborted: false }
         uploads.push(upload)
         return () => {

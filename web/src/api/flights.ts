@@ -21,4 +21,5 @@ export async function deleteFlight(id: string): Promise<void> {
 
 export const deleteFlights = (ids: string[]) => unwrap(api.POST('/api/flights/delete', { body: { ids } }))
 
-export const deleteAllFlights = () => unwrap(api.DELETE('/api/flights', { params: { query: { confirm: 'DELETE' } } }))
+/** Every flight of one database (never across databases). */
+export const deleteAllFlights = (databaseId: string) => unwrap(api.DELETE('/api/flights', { params: { query: { confirm: 'DELETE', databaseId } } }))

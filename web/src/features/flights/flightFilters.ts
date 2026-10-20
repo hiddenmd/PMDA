@@ -11,6 +11,8 @@ export interface FlightFilters {
   /** yyyy-mm-dd (UTC day, inclusive) */
   startTo: string
   problems: 'any' | 'with' | 'without'
+  /** One database's flights only; empty for all of them. */
+  databaseId: string
   sort: FlightSort
 }
 
@@ -22,6 +24,7 @@ export const EMPTY_FILTERS: FlightFilters = {
   startFrom: '',
   startTo: '',
   problems: 'any',
+  databaseId: '',
   sort: 'ImportedNewest',
 }
 
@@ -76,6 +79,7 @@ export function toQuery(f: FlightFilters, page: number, pageSize: number): Fligh
     startFrom: f.startFrom ? `${f.startFrom}T00:00:00Z` : undefined,
     startTo: f.startTo ? nextDay(f.startTo) : undefined,
     hasProblems: f.problems === 'any' ? undefined : f.problems === 'with',
+    databaseId: f.databaseId || undefined,
     sort: f.sort,
   }
 }

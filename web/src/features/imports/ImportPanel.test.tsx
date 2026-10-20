@@ -4,6 +4,7 @@ import { useActorRef } from '@xstate/react'
 import { useEffect } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fromCallback, fromPromise } from 'xstate'
+import type { DatabaseChoice } from '../../api/databases'
 import type { ImportJob } from '../../api/types'
 import { useBatchView } from '../../hooks/useImportBatch'
 import { importBatchMachine } from '../../machines/importBatchMachine'
@@ -12,8 +13,9 @@ import { makeFile, makeJob } from '../../test/fixtures'
 import { ImportPanelView } from './ImportPanel'
 
 /** The real batch and file machines, with uploads and the server faked. */
-function renderPanel() {
+function renderPanel(targets: DatabaseChoice[] = [], defaultTarget: string | null = null) {
   const uploads = new Map<string, (e: ImportEvent) => void>()
+  const targetOf = new Map<string, string | null>()
   const onOpenFlight = vi.fn()
   let send: (e: { type: 'JOB_UPDATED'; job: ImportJob }) => void = () => undefined
 
@@ -21,8 +23,9 @@ function renderPanel() {
     actors: {
       importFile: importMachine.provide({
         actors: {
-          upload: fromCallback<ImportEvent, { file: File }>(({ input, sendBack }) => {
+          upload: fromCallback<ImportEvent, { file: File; databaseId: string | null }>(({ input, sendBack }) => {
             uploads.set(input.file.name, sendBack)
+            targetOf.set(input.file.name, input.databaseId)
             return () => uploads.delete(input.file.name)
           }),
           watchJob: fromCallback(() => () => undefined),
@@ -37,14 +40,14 @@ function renderPanel() {
     useEffect(() => {
       send = actor.send
     }, [actor])
-    return <ImportPanelView batch={useBatchView(actor)} onOpenFlight={onOpenFlight} />
+    return <ImportPanelView batch={useBatchView(actor)} onOpenFlight={onOpenFlight} targets={targets} defaultTarget={defaultTarget} />
   }
   render(<Harness />)
 
   const uploaded = (name: string, job: ImportJob) => act(() => uploads.get(name)!({ type: 'UPLOAD_DONE', job }))
   const update = (job: ImportJob) => act(() => send({ type: 'JOB_UPDATED', job }))
   const row = (name: string) => screen.getByText(name).closest('li')!
-  return { uploads, onOpenFlight, uploaded, update, row }
+  return { uploads, targetOf, onOpenFlight, uploaded, update, row }
 }
 
 describe('ImportPanelView', () => {
@@ -89,6 +92,30 @@ describe('ImportPanelView', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Clear finished' }))
     expect(screen.queryByText('bad.bin')).not.toBeInTheDocument()
     expect(screen.getByText('good.bin')).toBeInTheDocument()
+  })
+
+  it('imports into the chosen database, preset to the default', async () => {
+    const h = renderPanel(
+      [
+        { id: 'main', name: 'Main', readOnly: false },
+        { id: 'bravo', name: 'Bravo', readOnly: false },
+      ],
+      'main',
+    )
+    const picker = screen.getByLabelText('Import into')
+    expect(picker).toHaveValue('main')
+
+    await userEvent.upload(screen.getByLabelText('Flight recordings'), [makeFile('a.bin')])
+    await userEvent.selectOptions(picker, 'bravo')
+    await userEvent.upload(screen.getByLabelText('Flight recordings'), [makeFile('b.bin')])
+
+    expect(h.targetOf.get('a.bin')).toBe('main')
+    expect(h.targetOf.get('b.bin')).toBe('bravo')
+  })
+
+  it('has no picker with a single database', () => {
+    renderPanel([{ id: 'main', name: 'Main', readOnly: false }], 'main')
+    expect(screen.queryByLabelText('Import into')).not.toBeInTheDocument()
   })
 
   it('cancels everything still in progress', async () => {

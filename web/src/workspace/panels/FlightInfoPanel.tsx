@@ -25,6 +25,10 @@ export function FlightInfoPanel() {
         <span>Start {formatUtc(flight.startUtc)}</span>
         <span className="mono">{flight.sourceName}</span>
         <span>Imported {formatUtc(flight.importedUtc)}</span>
+        <span>
+          Database {flight.databaseName}
+          {flight.databaseReadOnly ? ' (read-only)' : ''}
+        </span>
         {flight.failureReason && <span>{flight.failureReason}</span>}
       </div>
 

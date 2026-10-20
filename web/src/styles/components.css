@@ -221,6 +221,10 @@
 .chip--deleting {
   color: var(--color-muted-foreground);
 }
+/* A label chip after text (Import default, Read-only). */
+.chip--tag {
+  margin-left: var(--space-sm);
+}
 /* A locked emitter is a solid amber block; the text still names the state. */
 .chip--lock {
   color: var(--color-on-accent);

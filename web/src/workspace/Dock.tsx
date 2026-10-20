@@ -14,6 +14,7 @@ import { AttitudePanel } from './panels/AttitudePanel'
 import { MapPanel } from './panels/MapPanel'
 import { ScopePanel } from './panels/ScopePanel'
 import { UsersPanel } from './panels/UsersPanel'
+import { DatabasesPanel } from './panels/DatabasesPanel'
 
 const pmdaTheme: DockviewTheme = { name: 'pmda', className: 'dockview-theme-pmda', gap: 0, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
 
@@ -29,6 +30,7 @@ const components: Record<PanelKind, FunctionComponent<IDockviewPanelProps>> = {
   messages: MessagesPanel,
   graph: GraphPanel as FunctionComponent<IDockviewPanelProps>,
   users: UsersPanel,
+  databases: DatabasesPanel,
 }
 
 interface DockProps {

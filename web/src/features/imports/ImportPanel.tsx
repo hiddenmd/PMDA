@@ -1,6 +1,8 @@
 import { useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle2, Clock, Copy, FolderOpen, Loader2, RotateCcw, UploadCloud, X, XCircle } from '../../components/icons'
 import { useEffect, useRef, useState, type DragEvent } from 'react'
+import type { DatabaseChoice } from '../../api/databases'
+import { useDatabaseChoices } from '../../hooks/useDatabases'
 import { useImportBatch, type ImportBatch } from '../../hooks/useImportBatch'
 import { formatBytes, formatCompact, formatNumber } from '../../lib/format'
 import { isFinished, type BatchItem, type BatchSummary, type FileImportRef, type FileStatus } from '../../machines/importBatchMachine'
@@ -13,19 +15,49 @@ interface ImportPanelProps {
 
 export function ImportPanel({ onOpenFlight }: ImportPanelProps) {
   const batch = useImportBatch()
-  return <ImportPanelView batch={batch} onOpenFlight={onOpenFlight} />
+  const choices = useDatabaseChoices()
+  return (
+    <ImportPanelView
+      batch={batch}
+      onOpenFlight={onOpenFlight}
+      targets={choices.data?.databases.filter((d) => !d.readOnly)}
+      defaultTarget={choices.data?.defaultImportId ?? null}
+    />
+  )
+}
+
+interface ImportPanelViewProps extends ImportPanelProps {
+  batch: ImportBatch
+  /** Databases that take imports; the picker shows when there is a choice. */
+  targets?: readonly DatabaseChoice[]
+  defaultTarget?: string | null
 }
 
 /** Drop zone plus one row per file of the batch. */
-export function ImportPanelView({ batch, onOpenFlight }: { batch: ImportBatch } & ImportPanelProps) {
+export function ImportPanelView({ batch, onOpenFlight, targets = [], defaultTarget = null }: ImportPanelViewProps) {
   const { items, summary } = batch
+  const [picked, setPicked] = useState<string | null>(null)
+  // The admin may change the default while this panel is open: follow it until the user picks one.
+  const target = picked !== null && targets.some((t) => t.id === picked) ? picked : (defaultTarget ?? targets[0]?.id ?? null)
   const children = useSelector(batch.actor, (s) => s.children as Record<string, FileImportRef | undefined>)
   const active = summary.waiting + summary.uploading + summary.importing
   const finished = summary.total - active
 
   return (
     <section className="import" aria-label="Import flights">
-      <FilePicker onFiles={batch.add} compact={items.length > 0} />
+      {targets.length > 1 && (
+        <label className="field import-target">
+          <span>Import into</span>
+          <select className="select select--compact" value={target ?? ''} onChange={(e) => setPicked(e.target.value)}>
+            {targets.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.id === defaultTarget ? `${t.name} (default)` : t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <FilePicker onFiles={(files) => batch.add(files, target)} compact={items.length > 0} />
 
       {items.length > 0 && (
         <div className="import-batch">

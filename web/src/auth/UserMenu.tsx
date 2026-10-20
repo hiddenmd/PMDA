@@ -1,10 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import type { DockviewApi } from 'dockview-react'
-import { AlertCircle, Database, KeyRound, LogOut, Users } from '../components/icons'
+import { Database, KeyRound, LogOut, Users } from '../components/icons'
 import { useState } from 'react'
 import { changePassword, errorMessage } from '../api/auth'
-import { databaseKeys, getDatabaseStatus } from '../api/database'
-import { DatabaseForm } from '../features/database/DatabaseForm'
 import { Dialog } from '../components/Dialog'
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from '../components/Menu'
 import { openPanel } from '../workspace/layouts'
@@ -14,7 +12,6 @@ import { PasswordField } from './LoginScreen'
 export function UserMenu({ api }: { api: DockviewApi | null }) {
   const { user, isAdmin, signOut } = useAuth()
   const [changing, setChanging] = useState(false)
-  const [database, setDatabase] = useState(false)
 
   return (
     <>
@@ -49,12 +46,13 @@ export function UserMenu({ api }: { api: DockviewApi | null }) {
             {isAdmin && (
               <MenuItem
                 icon={<Database size={14} aria-hidden />}
+                disabled={!api}
                 onSelect={() => {
+                  if (api) openPanel(api, 'databases')
                   close()
-                  setDatabase(true)
                 }}
               >
-                Database…
+                Manage databases
               </MenuItem>
             )}
             <MenuItem
@@ -76,36 +74,7 @@ export function UserMenu({ api }: { api: DockviewApi | null }) {
       <Dialog open={changing} title="Change password" icon={<KeyRound size={18} aria-hidden />} onClose={() => setChanging(false)}>
         {changing && <ChangePasswordForm onDone={() => setChanging(false)} />}
       </Dialog>
-      <Dialog open={database} title="Database" icon={<Database size={18} aria-hidden />} onClose={() => setDatabase(false)}>
-        {database && <DatabaseSettings onDone={() => setDatabase(false)} />}
-      </Dialog>
-    </>
-  )
-}
 
-/** The admin's view of the connection: the same form as first-run setup, prefilled from the current one. */
-function DatabaseSettings({ onDone }: { onDone: () => void }) {
-  const queryClient = useQueryClient()
-  // Fresh each time the dialog opens: the gate's copy may be from page load.
-  const status = useQuery({ queryKey: databaseKeys.status, queryFn: ({ signal }) => getDatabaseStatus(signal), staleTime: 0 })
-
-  if (status.isPending) return <p className="muted">Loading…</p>
-  if (status.isError) return <p className="notice notice--error">{errorMessage(status.error)}</p>
-  return (
-    <>
-      <p className="notice notice--warn">
-        <AlertCircle size={16} aria-hidden />
-        <span>Sessions belong to the database: switching to another database signs everyone out, including you.</span>
-      </p>
-      <DatabaseForm
-        initial={status.data.settings}
-        onSaved={(next) => {
-          queryClient.setQueryData(databaseKeys.status, next)
-          // Sessions are checked against the new database's users: find out whether this one still counts.
-          void queryClient.invalidateQueries({ queryKey: ['auth'] })
-          onDone()
-        }}
-      />
     </>
   )
 }

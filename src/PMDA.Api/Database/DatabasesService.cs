@@ -34,8 +34,8 @@ public sealed class DatabasesService(
         return new DatabaseListDto(items, registry.DefaultImportId, file.LoadError);
     }
 
-    public ImportTargetsDto Targets() =>
-        new(stores.ImportDefault?.Id, stores.Writable.Select(s => new ImportTargetDto(s.Id, s.Name)).ToList());
+    public DatabaseChoicesDto Choices() =>
+        new(stores.ImportDefault?.Id, stores.Enabled.Select(s => new DatabaseChoiceDto(s.Id, s.Name, s.ReadOnly)).ToList());
 
     private async Task<DatabaseDto> DescribeAsync(FlightStore store, string? defaultId, CancellationToken ct)
     {

@@ -10,9 +10,9 @@ public static class DatabasesEndpoints
     {
         var group = app.MapGroup("/api/databases").WithTags("Databases");
 
-        // Any signed-in user: where an upload may go.
-        group.MapGet("/targets", (DatabasesService databases) => TypedResults.Ok(databases.Targets()))
-            .WithName("ListImportTargets").WithSummary("Databases that take imports, and the default.");
+        // Any signed-in user: the databases to filter by and to import into.
+        group.MapGet("/choices", (DatabasesService databases) => TypedResults.Ok(databases.Choices()))
+            .WithName("ListDatabaseChoices").WithSummary("Enabled databases (to filter flights, and to import into unless read-only) and the import default.");
 
         var admin = group.MapGroup("").RequireAuthorization(Policies.Admin);
         admin.MapGet("", List).WithName("ListDatabases").WithSummary("Every registered flight database with its state.");

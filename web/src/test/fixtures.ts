@@ -16,6 +16,8 @@ export function makeJob(overrides: Partial<ImportJob> = {}): ImportJob {
     errorCount: 0,
     flightId: null,
     failureReason: null,
+    databaseId: 'main',
+    databaseName: 'Main',
     ...overrides,
   }
 }

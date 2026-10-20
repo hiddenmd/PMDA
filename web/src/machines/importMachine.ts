@@ -18,6 +18,8 @@ import type { ImportJob } from '../api/types'
 
 export interface ImportContext {
   file: File | null
+  /** Where the file is imported (null: the server's default). Kept for retries. */
+  databaseId: string | null
   job: ImportJob | null
   upload: { loaded: number; total: number }
   error: string | null
@@ -25,7 +27,7 @@ export interface ImportContext {
 }
 
 export type ImportEvent =
-  | { type: 'START'; file: File }
+  | { type: 'START'; file: File; databaseId?: string | null }
   | { type: 'CANCEL' }
   | { type: 'RETRY' }
   | { type: 'RESET' }
@@ -43,10 +45,11 @@ export interface ImportInput {
 export const POLL_INTERVAL_MS = 1_000
 
 /** Uploads the file; reports progress and the result as events. Leaving `uploading` aborts it. */
-export const uploadActor = fromCallback<ImportEvent, { file: File }>(({ input, sendBack }) => {
+export const uploadActor = fromCallback<ImportEvent, { file: File; databaseId: string | null }>(({ input, sendBack }) => {
   const controller = new AbortController()
   uploadImport(input.file, {
     signal: controller.signal,
+    databaseId: input.databaseId,
     onProgress: (loaded, total) => sendBack({ type: 'UPLOAD_PROGRESS', loaded, total }),
   }).then(
     (job) => sendBack({ type: 'UPLOAD_DONE', job }),
@@ -126,6 +129,7 @@ export const importMachine = setup({
   id: 'import',
   context: ({ input }) => ({
     file: null,
+    databaseId: null,
     job: null,
     upload: { loaded: 0, total: 0 },
     error: null,
@@ -137,12 +141,12 @@ export const importMachine = setup({
   initial: 'idle',
   states: {
     idle: {
-      on: { START: { target: 'uploading', actions: assign({ file: ({ event }) => event.file }) } },
+      on: { START: { target: 'uploading', actions: assign({ file: ({ event }) => event.file, databaseId: ({ event }) => event.databaseId ?? null }) } },
     },
 
     uploading: {
       entry: 'beginUpload',
-      invoke: { src: 'upload', input: ({ context }) => ({ file: context.file! }) },
+      invoke: { src: 'upload', input: ({ context }) => ({ file: context.file!, databaseId: context.databaseId }) },
       on: {
         UPLOAD_PROGRESS: { actions: assign({ upload: ({ event }) => ({ loaded: event.loaded, total: event.total }) }) },
         UPLOAD_DONE: { target: 'tracking', actions: 'storeJob' },

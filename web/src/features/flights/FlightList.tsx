@@ -2,10 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, ChevronLeft, ChevronRight, MoreHorizontal, Search, SlidersHorizontal, Trash2, X } from '../../components/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { deleteAllFlights, deleteFlights } from '../../api/flights'
+import type { DatabaseChoice } from '../../api/databases'
 import type { FlightSummary } from '../../api/types'
 import { Dialog } from '../../components/Dialog'
 import { Menu, MenuItem } from '../../components/Menu'
 import { StatusChip } from '../../components/StatusChip'
+import { useDatabaseChoices } from '../../hooks/useDatabases'
 import { flightKeys, useCustomers, useFlights } from '../../hooks/useFlights'
 import { formatCompact, formatNumber, formatUtc, formatUtcShort } from '../../lib/format'
 import { activeFilterCount, EMPTY_FILTERS, filtersFromUrl, filtersToUrl, SORT_LABELS, toQuery, type FlightFilters } from './flightFilters'
@@ -39,6 +41,10 @@ export function FlightList({ selectedId, onSelect, canManage = false }: FlightLi
   }, [filters])
 
   const flights = useFlights(useMemo(() => toQuery(query, page, PAGE_SIZE), [query, page]))
+  const choices = useDatabaseChoices()
+  const databases = choices.data?.databases ?? []
+  // Delete all works on one database: the one picked in the filters.
+  const deleteTarget = databases.find((d) => d.id === query.databaseId && !d.readOnly)
   const total = flights.data?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const active = activeFilterCount(filters)
@@ -66,12 +72,13 @@ export function FlightList({ selectedId, onSelect, canManage = false }: FlightLi
                 <MenuItem
                   danger
                   icon={<Trash2 size={14} aria-hidden />}
+                  disabled={!deleteTarget}
                   onSelect={() => {
                     close()
                     setConfirm('all')
                   }}
                 >
-                  Delete all flights…
+                  {deleteTarget ? `Delete all flights in ${deleteTarget.name}…` : 'Delete all flights… (pick a writable database in Filters)'}
                 </MenuItem>
               )}
             </Menu>
@@ -84,7 +91,25 @@ export function FlightList({ selectedId, onSelect, canManage = false }: FlightLi
         <input className="input input--compact" type="search" placeholder="Tail" aria-label="Filter by tail" value={filters.tail} onChange={(e) => update('tail', e.target.value)} />
       </div>
 
-      {showFilters && <FilterFields id="flight-filters" filters={filters} update={update} onReset={() => setFilters({ ...EMPTY_FILTERS, sort: filters.sort })} />}
+      {showFilters && (
+        <FilterFields id="flight-filters" filters={filters} databases={databases} update={update} onReset={() => setFilters({ ...EMPTY_FILTERS, sort: filters.sort })} />
+      )}
+
+      {flights.data && flights.data.unavailable.length > 0 && (
+        <p className="notice notice--warn" role="status">
+          <AlertTriangle size={16} aria-hidden />
+          <span>
+            {flights.data.unavailable.length === 1 ? '1 database is' : `${flights.data.unavailable.length} databases are`} unavailable, so its flights are
+            missing: {flights.data.unavailable.map((u) => u.name).join(', ')}
+          </span>
+        </p>
+      )}
+      {choices.data && databases.length === 0 && (
+        <p className="notice notice--warn" role="status">
+          <AlertTriangle size={16} aria-hidden />
+          <span>No databases yet. An administrator adds one under user menu → Manage databases.</span>
+        </p>
+      )}
 
       {canManage && checked.size > 0 && (
         <div className="selection-bar" role="region" aria-label="Selected flights">
@@ -121,6 +146,7 @@ export function FlightList({ selectedId, onSelect, canManage = false }: FlightLi
             })
           }
           filtered={active > 0}
+          showDatabase={databases.length > 1}
         />
       )}
 
@@ -141,6 +167,7 @@ export function FlightList({ selectedId, onSelect, canManage = false }: FlightLi
       <DeleteDialog
         mode={confirm}
         ids={[...checked]}
+        database={deleteTarget ?? null}
         onClose={() => setConfirm(null)}
         onDeleted={() => {
           setChecked(new Set())
@@ -154,14 +181,28 @@ export function FlightList({ selectedId, onSelect, canManage = false }: FlightLi
 interface FilterFieldsProps {
   id: string
   filters: FlightFilters
+  databases: readonly DatabaseChoice[]
   update: <K extends keyof FlightFilters>(key: K, value: FlightFilters[K]) => void
   onReset: () => void
 }
 
-function FilterFields({ id, filters, update, onReset }: FilterFieldsProps) {
+function FilterFields({ id, filters, databases, update, onReset }: FilterFieldsProps) {
   const customers = useCustomers()
   return (
     <div id={id} className="filters" role="group" aria-label="Flight filters">
+      {databases.length > 1 && (
+        <label className="field field--wide">
+          <span>Database</span>
+          <select className="select select--compact" value={filters.databaseId} onChange={(e) => update('databaseId', e.target.value)}>
+            <option value="">All databases</option>
+            {databases.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.readOnly ? `${d.name} (read-only)` : d.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="field">
         <span>Mission</span>
         <input className="input input--compact" value={filters.mission} onChange={(e) => update('mission', e.target.value)} />
@@ -230,9 +271,11 @@ interface FlightItemsProps {
   checked?: ReadonlySet<string>
   onCheck?: (id: string, checked: boolean) => void
   filtered?: boolean
+  /** Name each flight's database (when there is more than one). */
+  showDatabase?: boolean
 }
 
-export function FlightItems({ flights, selectedId, onSelect, checked, onCheck, filtered }: FlightItemsProps) {
+export function FlightItems({ flights, selectedId, onSelect, checked, onCheck, filtered, showDatabase = false }: FlightItemsProps) {
   if (flights.length === 0)
     return <p className="muted small">{filtered ? 'No flights match the filters.' : 'No flights yet. Import a recording to get started.'}</p>
 
@@ -256,6 +299,11 @@ export function FlightItems({ flights, selectedId, onSelect, checked, onCheck, f
             <StatusChip status={f.status} />
             <span className="flight-item__meta">
               <span title={formatUtc(f.startUtc)}>{formatUtcShort(f.startUtc)}</span>
+              {showDatabase && (
+                <span className="flight-item__db" title={`Database: ${f.databaseName}`}>
+                  {f.databaseName}
+                </span>
+              )}
               <span className="mono" title={`${formatNumber(f.eventCount)} events`}>
                 {formatCompact(f.eventCount)} ev{f.errorCount > 0 ? ` · ${formatNumber(f.errorCount)} prob` : ''}
               </span>
@@ -270,15 +318,17 @@ export function FlightItems({ flights, selectedId, onSelect, checked, onCheck, f
 interface DeleteDialogProps {
   mode: 'selected' | 'all' | null
   ids: string[]
+  /** Where "delete all" acts. */
+  database: DatabaseChoice | null
   onClose: () => void
   onDeleted: () => void
 }
 
-function DeleteDialog({ mode, ids, onClose, onDeleted }: DeleteDialogProps) {
+function DeleteDialog({ mode, ids, database, onClose, onDeleted }: DeleteDialogProps) {
   const queryClient = useQueryClient()
   const [typed, setTyped] = useState('')
   const mutation = useMutation({
-    mutationFn: () => (mode === 'all' ? deleteAllFlights() : deleteFlights(ids)),
+    mutationFn: () => (mode === 'all' ? deleteAllFlights(database!.id) : deleteFlights(ids)),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: flightKeys.all })
       setTyped('')
@@ -286,7 +336,7 @@ function DeleteDialog({ mode, ids, onClose, onDeleted }: DeleteDialogProps) {
     },
   })
   const all = mode === 'all'
-  const ready = !all || typed === 'DELETE'
+  const ready = !all || (typed === 'DELETE' && database !== null)
   const close = () => {
     setTyped('')
     mutation.reset()
@@ -296,13 +346,13 @@ function DeleteDialog({ mode, ids, onClose, onDeleted }: DeleteDialogProps) {
   return (
     <Dialog
       open={mode !== null}
-      title={all ? 'Delete all flights?' : `Delete ${ids.length} flight${ids.length === 1 ? '' : 's'}?`}
+      title={all ? `Delete all flights in ${database?.name ?? 'this database'}?` : `Delete ${ids.length} flight${ids.length === 1 ? '' : 's'}?`}
       icon={<AlertTriangle size={18} color="var(--color-destructive)" aria-hidden />}
       onClose={close}
     >
       <p className="small">
         {all
-          ? 'Every flight, its events and its parse problems are removed for all users. This cannot be undone.'
+          ? `Every flight in ${database?.name ?? 'this database'}, with its events and parse problems, is removed for all users. Other databases are not touched. This cannot be undone.`
           : 'The selected flights, their events and parse problems are removed for all users. This cannot be undone.'}
       </p>
       {all && (

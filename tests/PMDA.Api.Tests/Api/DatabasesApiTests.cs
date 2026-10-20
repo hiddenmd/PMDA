@@ -46,9 +46,9 @@ public sealed class DatabasesApiTests(SqlDatabase db) : IAsyncLifetime
 
         (await admin.PutAsJsonAsync("/api/databases/bravo", Bravo("Bravo 2"), Json)).EnsureSuccessStatusCode();
         (await admin.PutAsJsonAsync("/api/databases/default", new SetDefaultDatabaseRequest("bravo"), Json)).EnsureSuccessStatusCode();
-        var targets = (await admin.GetFromJsonAsync<ImportTargetsDto>("/api/databases/targets", Json))!;
-        Assert.Equal("bravo", targets.DefaultId);
-        Assert.Contains(targets.Targets, t => t is { Id: "bravo", Name: "Bravo 2" });
+        var targets = (await admin.GetFromJsonAsync<DatabaseChoicesDto>("/api/databases/choices", Json))!;
+        Assert.Equal("bravo", targets.DefaultImportId);
+        Assert.Contains(targets.Databases, t => t is { Id: "bravo", Name: "Bravo 2", ReadOnly: false });
 
         var removed = await admin.DeleteAsync("/api/databases/bravo");
         removed.EnsureSuccessStatusCode();
@@ -64,8 +64,8 @@ public sealed class DatabasesApiTests(SqlDatabase db) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, (await analyst.GetAsync("/api/databases")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await analyst.PostAsJsonAsync("/api/databases", Bravo(), Json)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await analyst.DeleteAsync("/api/databases/main")).StatusCode);
-        var targets = (await analyst.GetFromJsonAsync<ImportTargetsDto>("/api/databases/targets", Json))!;
-        Assert.Equal("main", targets.DefaultId);
+        var targets = (await analyst.GetFromJsonAsync<DatabaseChoicesDto>("/api/databases/choices", Json))!;
+        Assert.Equal("main", targets.DefaultImportId);
     }
 
     [Fact]
@@ -93,8 +93,8 @@ public sealed class DatabasesApiTests(SqlDatabase db) : IAsyncLifetime
         Assert.Contains("no PMDA flights table", await notPmda.Content.ReadAsStringAsync());
 
         (await admin.PostAsJsonAsync("/api/databases", Bravo("Archive", readOnly: true), Json)).EnsureSuccessStatusCode();
-        var targets = (await admin.GetFromJsonAsync<ImportTargetsDto>("/api/databases/targets", Json))!;
-        Assert.DoesNotContain(targets.Targets, t => t.Id == "archive");
+        var targets = (await admin.GetFromJsonAsync<DatabaseChoicesDto>("/api/databases/choices", Json))!;
+        Assert.Contains(targets.Databases, t => t is { Id: "archive", ReadOnly: true });
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsJsonAsync("/api/databases/default", new SetDefaultDatabaseRequest("archive"), Json)).StatusCode);
     }
 

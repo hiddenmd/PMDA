@@ -44,7 +44,10 @@ public sealed record SetDefaultDatabaseRequest(string Id);
 
 public sealed record DatabaseTestResultDto(bool Ok, string? Message, string? ServerVersion, bool DatabaseExists);
 
-public sealed record ImportTargetDto(string Id, string Name);
+public sealed record DatabaseChoiceDto(string Id, string Name, bool ReadOnly);
 
-/// <summary>Where an upload may go: writable, enabled databases, and the one preselected.</summary>
-public sealed record ImportTargetsDto(string? DefaultId, IReadOnlyList<ImportTargetDto> Targets);
+/// <summary>
+/// The databases any signed-in user may pick from (enabled ones): to filter the flight list, and as an import
+/// target unless read-only. <paramref name="DefaultImportId"/> is preselected for uploads.
+/// </summary>
+public sealed record DatabaseChoicesDto(string? DefaultImportId, IReadOnlyList<DatabaseChoiceDto> Databases);

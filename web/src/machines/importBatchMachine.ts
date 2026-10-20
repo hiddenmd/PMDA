@@ -21,6 +21,8 @@ export type FileStatus = 'waiting' | 'starting' | Exclude<ImportStatus, 'idle'>
 export interface BatchItem {
   id: string
   file: File
+  /** The flight database chosen when the file was added (null: the server's default). */
+  databaseId: string | null
   status: FileStatus
 }
 
@@ -31,7 +33,7 @@ export interface BatchContext {
 }
 
 export type BatchEvent =
-  | { type: 'ADD_FILES'; files: File[] }
+  | { type: 'ADD_FILES'; files: File[]; databaseId?: string | null }
   | { type: 'CANCEL'; id: string }
   | { type: 'CANCEL_ALL' }
   | { type: 'RETRY'; id: string }
@@ -62,7 +64,7 @@ export const importBatchMachine = setup({
       for (const item of context.items) {
         if (free <= 0) break
         if (item.status !== 'waiting') continue
-        enqueue.sendTo(item.id, { type: 'START', file: item.file })
+        enqueue.sendTo(item.id, { type: 'START', file: item.file, databaseId: item.databaseId })
         starting.add(item.id)
         free--
       }
@@ -87,7 +89,7 @@ export const importBatchMachine = setup({
     ADD_FILES: {
       actions: [
         enqueueActions(({ context, event, enqueue }) => {
-          const added = event.files.map((file, i): BatchItem => ({ id: `file-${context.nextId + i}`, file, status: 'waiting' }))
+          const added = event.files.map((file, i): BatchItem => ({ id: `file-${context.nextId + i}`, file, databaseId: event.databaseId ?? null, status: 'waiting' }))
           for (const item of added) {
             enqueue.spawnChild('importFile', { id: item.id, input: { hubConnected: context.hubConnected }, syncSnapshot: true })
           }

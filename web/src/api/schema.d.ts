@@ -136,17 +136,16 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/database": {
+    "/api/databases/choices": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** The database connection's state, and its settings for those allowed to change them. */
-        get: operations["GetDatabaseStatus"];
-        /** Test, prepare the schema, save and switch to a connection. */
-        put: operations["SaveDatabase"];
+        /** Enabled databases (to filter flights, and to import into unless read-only) and the import default. */
+        get: operations["ListDatabaseChoices"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -154,7 +153,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/database/test": {
+    "/api/databases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every registered flight database with its state. */
+        get: operations["ListDatabases"];
+        put?: never;
+        /** Register a flight database (creating it or its tables when asked). */
+        post: operations["AddDatabase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/databases/test": {
         parameters: {
             query?: never;
             header?: never;
@@ -166,6 +183,40 @@ export interface paths {
         /** Try a connection without saving it. */
         post: operations["TestDatabase"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/databases/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Choose where imports go by default. */
+        put: operations["SetDefaultDatabase"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/databases/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["UpdateDatabase"];
+        post?: never;
+        /** Forget a database; it is not dropped. */
+        delete: operations["RemoveDatabase"];
         options?: never;
         head?: never;
         patch?: never;
@@ -265,7 +316,7 @@ export interface paths {
         get: operations["ListFlights"];
         put?: never;
         post?: never;
-        /** Delete every flight. Requires confirm=DELETE; refused while imports run. */
+        /** Delete every flight in one database. Requires databaseId and confirm=DELETE; refused while imports run. */
         delete: operations["DeleteAllFlights"];
         options?: never;
         head?: never;
@@ -619,6 +670,46 @@ export interface components {
         };
         /** @enum {unknown} */
         DatabaseAuthentication: "Windows" | "SqlLogin";
+        DatabaseChoiceDto: {
+            id: string;
+            name: string;
+            readOnly: boolean;
+        };
+        DatabaseChoicesDto: {
+            defaultImportId: string | null;
+            databases: components["schemas"]["DatabaseChoiceDto"][];
+        };
+        DatabaseDto: {
+            id: string;
+            name: string;
+            settings: components["schemas"]["DatabaseSettingsDto"];
+            readOnly: boolean;
+            enabled: boolean;
+            isImportDefault: boolean;
+            state: components["schemas"]["DatabaseState"];
+            message: string | null;
+            /** Format: int64 */
+            flightCount: number | null;
+        };
+        DatabaseEntryRequest: {
+            id: string | null;
+            name: string;
+            server: string;
+            database: string;
+            authentication: components["schemas"]["DatabaseAuthentication"];
+            user: string | null;
+            password: string | null;
+            encrypt: boolean;
+            trustServerCertificate: boolean;
+            readOnly: boolean;
+            enabled: boolean;
+            createIfMissing: boolean;
+        };
+        DatabaseListDto: {
+            databases: components["schemas"]["DatabaseDto"][];
+            defaultImportId: string | null;
+            registryError: string | null;
+        };
         DatabaseSettingsDto: {
             server: string;
             database: string;
@@ -627,28 +718,9 @@ export interface components {
             hasPassword: boolean;
             encrypt: boolean;
             trustServerCertificate: boolean;
-        } | null;
-        DatabaseSetupRequest: {
-            server: string;
-            database: string;
-            authentication: components["schemas"]["DatabaseAuthentication"];
-            user: string | null;
-            password: string | null;
-            encrypt: boolean;
-            trustServerCertificate: boolean;
-            createIfMissing: boolean;
         };
         /** @enum {unknown} */
-        DatabaseSource: "None" | "AppSettings" | "File";
-        /** @enum {unknown} */
-        DatabaseState: "NotConfigured" | "Unreachable" | "Ready";
-        DatabaseStatusDto: {
-            state: components["schemas"]["DatabaseState"];
-            canConfigure: boolean;
-            source: components["schemas"]["DatabaseSource"];
-            settings: components["schemas"]["DatabaseSettingsDto"];
-            message: string | null;
-        };
+        DatabaseState: "Ready" | "Unreachable" | "Disabled";
         DatabaseTestResultDto: {
             ok: boolean;
             message: string | null;
@@ -806,6 +878,9 @@ export interface components {
             errorCount: number;
             /** Format: date-time */
             importedUtc: string;
+            databaseId: string;
+            databaseName: string;
+            databaseReadOnly: boolean;
         };
         FlightOverviewDto: {
             /** Format: int64 */
@@ -822,6 +897,7 @@ export interface components {
             pageSize: number;
             /** Format: int64 */
             total: number;
+            unavailable: components["schemas"]["UnavailableDatabaseDto"][];
         };
         /**
          * @default ImportedNewest
@@ -845,6 +921,8 @@ export interface components {
             errorCount: number;
             /** Format: date-time */
             importedUtc: string;
+            databaseId: string;
+            databaseName: string;
         };
         FlightTrackDto: {
             t: number[];
@@ -891,6 +969,8 @@ export interface components {
             /** Format: uuid */
             flightId: string | null;
             failureReason: string | null;
+            databaseId: string | null;
+            databaseName: string | null;
         };
         /** @enum {unknown} */
         ImportState: "Queued" | "Running" | "Completed" | "Duplicate" | "Failed" | "Cancelled";
@@ -1013,6 +1093,9 @@ export interface components {
             /** Format: int64 */
             bucketMs: number;
         };
+        SetDefaultDatabaseRequest: {
+            id: string;
+        };
         SetupRequest: {
             userName: string;
             displayName: string;
@@ -1057,6 +1140,11 @@ export interface components {
             priUs?: number[] | null;
             pulseWidthUs?: number[] | null;
             emitterIds?: number[] | null;
+        };
+        UnavailableDatabaseDto: {
+            id: string;
+            name: string;
+            message: string;
         };
         UpdateUserRequest: {
             displayName: string;
@@ -1236,6 +1324,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     Logout: {
@@ -1316,7 +1413,7 @@ export interface operations {
             };
         };
     };
-    GetDatabaseStatus: {
+    ListDatabaseChoices: {
         parameters: {
             query?: never;
             header?: never;
@@ -1331,12 +1428,32 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DatabaseStatusDto"];
+                    "application/json": components["schemas"]["DatabaseChoicesDto"];
                 };
             };
         };
     };
-    SaveDatabase: {
+    ListDatabases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseListDto"];
+                };
+            };
+        };
+    };
+    AddDatabase: {
         parameters: {
             query?: never;
             header?: never;
@@ -1345,7 +1462,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DatabaseSetupRequest"];
+                "application/json": components["schemas"]["DatabaseEntryRequest"];
             };
         };
         responses: {
@@ -1355,7 +1472,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DatabaseStatusDto"];
+                    "application/json": components["schemas"]["DatabaseListDto"];
                 };
             };
             /** @description Bad Request */
@@ -1367,23 +1484,12 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Forbidden */
-            403: {
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
+                content?: never;
             };
         };
     };
@@ -1396,7 +1502,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DatabaseSetupRequest"];
+                "application/json": components["schemas"]["DatabaseEntryRequest"];
             };
         };
         responses: {
@@ -1418,8 +1524,143 @@ export interface operations {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
-            /** @description Forbidden */
-            403: {
+        };
+    };
+    SetDefaultDatabase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetDefaultDatabaseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseListDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateDatabase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatabaseEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseListDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveDatabase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseListDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1617,6 +1858,8 @@ export interface operations {
             content: {
                 "multipart/form-data": {
                     file: components["schemas"]["IFormFile"];
+                } & {
+                    databaseId?: string;
                 };
             };
         };
@@ -1743,6 +1986,7 @@ export interface operations {
                 startTo?: string;
                 hasProblems?: boolean;
                 sort?: components["schemas"]["FlightSort"];
+                databaseId?: string;
             };
             header?: never;
             path?: never;
@@ -1774,6 +2018,7 @@ export interface operations {
         parameters: {
             query?: {
                 confirm?: string;
+                databaseId?: string;
             };
             header?: never;
             path?: never;

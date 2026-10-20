@@ -2,7 +2,7 @@ import type { DockviewApi, SerializedDockview } from 'dockview-react'
 import { DEFAULT_GRAPH, graphTitle, type GraphSettings } from '../features/graphs/graphKinds'
 import { storage } from '../lib/preferences'
 
-export type PanelKind = 'flights' | 'info' | 'scope' | 'map' | 'attitude' | 'emitters' | 'countermeasures' | 'alerts' | 'messages' | 'graph' | 'users'
+export type PanelKind = 'flights' | 'info' | 'scope' | 'map' | 'attitude' | 'emitters' | 'countermeasures' | 'alerts' | 'messages' | 'graph' | 'users' | 'databases'
 
 interface PanelSpec {
   title: string
@@ -24,6 +24,7 @@ export const PANELS: Record<PanelKind, PanelSpec> = {
   messages: { title: 'Message tables' },
   graph: { title: 'Graph', multiple: true },
   users: { title: 'Users', adminOnly: true },
+  databases: { title: 'Databases', adminOnly: true },
 }
 
 function graphPanel(id: string, settings: GraphSettings) {

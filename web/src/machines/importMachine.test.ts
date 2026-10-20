@@ -24,7 +24,7 @@ function harness({ hubConnected = true, cancelResult = null as ImportJob | null 
 
   const machine = importMachine.provide({
     actors: {
-      upload: fromCallback<ImportEvent, { file: File }>(({ input, sendBack }) => {
+      upload: fromCallback<ImportEvent, { file: File; databaseId: string | null }>(({ input, sendBack }) => {
         const upload: FakeUpload = { file: input.file, sendBack, aborted: false }
         uploads.push(upload)
         return () => {
