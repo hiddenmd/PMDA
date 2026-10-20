@@ -1,6 +1,6 @@
 import { AlertTriangle, Volume2, VolumeX } from '../components/icons'
 import { useAlerts, useAlertSound, useSoundPreference } from '../features/alerts/useAlerts'
-import { Timeline } from '../features/playback/Timeline'
+import { Timeline, TimelineLegend } from '../features/playback/Timeline'
 import { TransportBar } from '../features/playback/TransportBar'
 import { useFlightOverview, usePlaybackState } from '../features/playback/usePlayback'
 import { useWorkspace, type PlaybackActor } from './workspaceContext'
@@ -47,6 +47,7 @@ function ActivePlaybackBar({ actor, durationMs, startUtc, flightId }: { actor: P
         >
           {sound.enabled ? <Volume2 size={16} aria-hidden /> : <VolumeX size={16} aria-hidden />}
         </button>
+        <TimelineLegend alerts={alerts.data} />
         {p.error && (
           <span className="transport__status" role="status">
             <AlertTriangle size={14} aria-hidden /> {p.error}

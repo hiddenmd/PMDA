@@ -96,13 +96,16 @@ export function Timeline({ overview, alerts, positionMs, durationMs, startUtc, o
   }, [overview, alerts, durationMs])
 
   const ticks = useMemo(() => timeTicks(startEpoch, durationMs, 10), [startEpoch, durationMs])
-  const severities = useMemo(() => new Set((alerts ?? []).map((a) => ALERTS[a.kind].severity)), [alerts])
   const clock = formatUtcClock(new Date(startEpoch + positionMs))
+  const at = `${(Math.min(Math.max(positionMs / Math.max(1, durationMs), 0), 1) * 100).toFixed(3)}%`
 
   return (
     <div className="transport-timeline">
       <div className="timeline">
         <canvas ref={canvasRef} aria-hidden />
+        {/* The played part is dimmed and the playhead drawn on top, so the position reads even over dense data. */}
+        <div className="timeline__played" style={{ width: at }} aria-hidden />
+        <div className="timeline__playhead" style={{ left: at }} aria-hidden />
         <input
           type="range"
           aria-label="Playback position"
@@ -127,22 +130,29 @@ export function Timeline({ overview, alerts, positionMs, durationMs, startUtc, o
           {formatUtcClock(new Date(startEpoch + durationMs))}
         </span>
       </div>
-      <div className="timeline__legend" aria-hidden>
-        {SERIES.map((s) => (
-          <span key={s.type}>
-            <span className="legend-swatch" style={{ background: `var(${s.color})` }} />
-            {s.label}
+    </div>
+  )
+}
+
+/** What the strip's colours and marks mean; compact enough to sit in the transport row. */
+export function TimelineLegend({ alerts }: { alerts: readonly Alert[] | undefined }) {
+  const severities = useMemo(() => new Set((alerts ?? []).map((a) => ALERTS[a.kind].severity)), [alerts])
+  return (
+    <div className="timeline__legend" aria-hidden>
+      {SERIES.map((s) => (
+        <span key={s.type}>
+          <span className="legend-swatch" style={{ background: `var(${s.color})` }} />
+          {s.label}
+        </span>
+      ))}
+      {(['critical', 'warning'] as const)
+        .filter((s) => severities.has(s))
+        .map((s) => (
+          <span key={s}>
+            <span className="legend-swatch legend-swatch--line" style={{ background: `var(${MARKS[s].color})` }} />
+            {MARKS[s].label}
           </span>
         ))}
-        {(['critical', 'warning'] as const)
-          .filter((s) => severities.has(s))
-          .map((s) => (
-            <span key={s}>
-              <span className="legend-swatch legend-swatch--line" style={{ background: `var(${MARKS[s].color})` }} />
-              {MARKS[s].label}
-            </span>
-          ))}
-      </div>
     </div>
   )
 }

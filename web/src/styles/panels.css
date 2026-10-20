@@ -407,7 +407,7 @@
 }
 .timeline {
   position: relative;
-  height: calc(34px * var(--ui-scale));
+  height: calc(38px * var(--ui-scale));
 }
 .timeline canvas {
   position: absolute;
@@ -436,21 +436,62 @@
   height: 100%;
   background: transparent;
 }
+/* The thumb is only a grab area: .timeline__playhead draws the position. */
 .timeline input[type='range']::-webkit-slider-thumb {
   appearance: none;
-  width: 2px;
-  height: calc(34px * var(--ui-scale));
-  background: var(--color-primary);
-  border-radius: 0;
-  box-shadow: 0 0 var(--hud-glow) var(--color-primary);
+  width: 14px;
+  height: calc(38px * var(--ui-scale));
+  background: transparent;
+  border: 0;
 }
 .timeline input[type='range']::-moz-range-thumb {
-  width: 2px;
-  height: calc(34px * var(--ui-scale));
+  width: 14px;
+  height: calc(38px * var(--ui-scale));
   border: 0;
+  background: transparent;
+}
+.timeline input[type='range']:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.timeline__played {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: color-mix(in srgb, var(--color-background) 45%, transparent);
+  pointer-events: none;
+}
+.timeline__playhead {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  margin-left: -1.5px;
   background: var(--color-primary);
-  border-radius: 0;
-  box-shadow: 0 0 var(--hud-glow) var(--color-primary);
+  /* A dark rim keeps the line distinct over bright bars; the glow over dark ones. */
+  box-shadow:
+    0 0 0 1px var(--color-background),
+    0 0 8px var(--color-primary);
+  pointer-events: none;
+}
+.timeline__playhead::before,
+.timeline__playhead::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+}
+.timeline__playhead::before {
+  top: -5px;
+  border-bottom-width: 0;
+  border-top-color: var(--color-primary);
+}
+.timeline__playhead::after {
+  bottom: -5px;
+  border-top-width: 0;
+  border-bottom-color: var(--color-primary);
 }
 .timeline__axis {
   position: relative;
@@ -487,11 +528,20 @@
   left: auto;
   right: 0;
 }
+/* In the transport row, between the controls and the clock; dropped when the row is narrow. */
 .timeline__legend {
   display: flex;
-  gap: var(--space-lg);
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  margin-left: auto;
   font-size: var(--fs-xs);
   color: var(--color-muted-foreground);
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .timeline__legend {
+    display: none;
+  }
 }
 .legend-swatch {
   display: inline-block;
