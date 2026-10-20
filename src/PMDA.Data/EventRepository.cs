@@ -26,8 +26,10 @@ public sealed record EventPage(IReadOnlyList<EventRow> Rows, bool HasMore, long?
 /// Raw events for message tables. Reads are bounded to a time window so the columnstore only
 /// touches the rowgroups of that window; within it, rows are paged by sequence number.
 /// </summary>
-public sealed class EventRepository(string connectionString)
+public sealed class EventRepository(IConnectionSource connection)
 {
+    public EventRepository(string connectionString) : this(new FixedConnection(connectionString)) { }
+
     public const long MaxWindowMs = 3_600_000;
     public const int MaxLimit = 10_000;
 
@@ -40,7 +42,7 @@ public sealed class EventRepository(string connectionString)
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(limit, MaxLimit);
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var start = await conn.QuerySingleOrDefaultAsync<DateTime?>(new CommandDefinition(
             "SELECT StartUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
         if (start is null)

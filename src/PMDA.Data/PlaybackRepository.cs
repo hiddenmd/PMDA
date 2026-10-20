@@ -29,8 +29,10 @@ public sealed record FlightOverview(long SpanMs, int Buckets, IReadOnlyDictionar
 /// so they are summarised per time step in SQL, where the columnstore makes this cheap.
 /// Offsets are milliseconds from the flight's recorded start (Flight.StartUtc).
 /// </summary>
-public sealed class PlaybackRepository(string connectionString)
+public sealed class PlaybackRepository(IConnectionSource connection)
 {
+    public PlaybackRepository(string connectionString) : this(new FixedConnection(connectionString)) { }
+
     public const int MaxStepsPerRequest = 2_000;
 
     /// <returns>Frames for steps that have data, ordered by offset; null when the flight does not exist.</returns>
@@ -42,7 +44,7 @@ public sealed class PlaybackRepository(string connectionString)
         if ((toMs - fromMs + stepMs - 1) / stepMs > MaxStepsPerRequest)
             throw new ArgumentOutOfRangeException(nameof(stepMs), $"At most {MaxStepsPerRequest} steps per request.");
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var start = await GetStartAsync(conn, flightId, ct);
         if (start is null)
             return null;
@@ -113,7 +115,7 @@ public sealed class PlaybackRepository(string connectionString)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(buckets, 1);
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var flight = await conn.QuerySingleOrDefaultAsync<(DateTime StartUtc, DateTime? LastEventUtc)>(new CommandDefinition(
             "SELECT StartUtc, LastEventUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
         if (flight == default)
@@ -154,7 +156,7 @@ public sealed class PlaybackRepository(string connectionString)
         ArgumentOutOfRangeException.ThrowIfLessThan(points, 2);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(points, MaxTrackPoints);
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var flight = await conn.QuerySingleOrDefaultAsync<(DateTime StartUtc, DateTime? LastEventUtc)>(new CommandDefinition(
             "SELECT StartUtc, LastEventUtc FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;", new { flightId }, cancellationToken: ct));
         if (flight == default)
@@ -186,7 +188,7 @@ public sealed class PlaybackRepository(string connectionString)
     /// <summary>Aural warnings in time order (at most <see cref="MaxAlerts"/>); null when the flight does not exist.</summary>
     public async Task<IReadOnlyList<AlertRecord>?> GetAlertsAsync(Guid flightId, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var start = await GetStartAsync(conn, flightId, ct);
         if (start is null)
             return null;
@@ -217,7 +219,7 @@ public sealed class PlaybackRepository(string connectionString)
     /// </summary>
     public async Task<IReadOnlyList<EmitterBearingSlice>?> GetEmitterBearingsAsync(Guid flightId, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var start = await GetStartAsync(conn, flightId, ct);
         if (start is null)
             return null;

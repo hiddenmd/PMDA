@@ -32,8 +32,10 @@ public sealed record RateData(long[] T, IReadOnlyDictionary<EventType, long[]> C
 /// Downsampled data for graphs: aggregated per time bucket (and per emitter) in SQL, so a plot of
 /// an 11-million-event flight is a few thousand points.
 /// </summary>
-public sealed class SeriesRepository(string connectionString)
+public sealed class SeriesRepository(IConnectionSource connection)
 {
+    public SeriesRepository(string connectionString) : this(new FixedConnection(connectionString)) { }
+
     public const int MaxBuckets = 4_000;
 
     /// <summary>Aggregate per bucket. Bearing is a circular mean: 359° and 1° average to 0°.</summary>
@@ -50,7 +52,7 @@ public sealed class SeriesRepository(string connectionString)
     public async Task<(SeriesWindow Window, IReadOnlyList<EmitterSeries> Series)?> ParameterAsync(
         Guid flightId, SeriesParam param, long? fromMs, long? toMs, int buckets, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         if (await WindowAsync(conn, flightId, fromMs, toMs, buckets, ct) is not { } w)
             return null;
 
@@ -80,7 +82,7 @@ public sealed class SeriesRepository(string connectionString)
     public async Task<(SeriesWindow Window, IReadOnlyList<EmitterScatter> Series)?> ScatterAsync(
         Guid flightId, SeriesParam x, SeriesParam y, long? fromMs, long? toMs, int buckets, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         if (await WindowAsync(conn, flightId, fromMs, toMs, buckets, ct) is not { } w)
             return null;
 
@@ -103,7 +105,7 @@ public sealed class SeriesRepository(string connectionString)
 
     public async Task<(SeriesWindow Window, ProfileData Data)?> ProfileAsync(Guid flightId, long? fromMs, long? toMs, int buckets, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         if (await WindowAsync(conn, flightId, fromMs, toMs, buckets, ct) is not { } w)
             return null;
 
@@ -128,7 +130,7 @@ public sealed class SeriesRepository(string connectionString)
 
     public async Task<(SeriesWindow Window, RateData Data)?> RateAsync(Guid flightId, long? fromMs, long? toMs, int buckets, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         if (await WindowAsync(conn, flightId, fromMs, toMs, buckets, ct) is not { } w)
             return null;
 

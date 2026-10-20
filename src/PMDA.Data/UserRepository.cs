@@ -23,8 +23,10 @@ public sealed record UserRecord(
     DateTime? LastLoginUtc);
 
 /// <summary>PMDA's own user accounts. Hashing and policy live in the API; this is storage only.</summary>
-public sealed class UserRepository(string connectionString)
+public sealed class UserRepository(IConnectionSource connection)
 {
+    public UserRepository(string connectionString) : this(new FixedConnection(connectionString)) { }
+
     private const string Columns = """
         UserId, UserName, DisplayName, PasswordHash, Role, IsActive, FailedAttempts, LockoutUntilUtc,
         SecurityStamp, CreatedUtc, LastLoginUtc
@@ -32,27 +34,27 @@ public sealed class UserRepository(string connectionString)
 
     public async Task<int> CountAsync(CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         return await conn.ExecuteScalarAsync<int>(new CommandDefinition("SELECT COUNT(*) FROM dbo.AppUser;", cancellationToken: ct));
     }
 
     public async Task<int> ActiveAdminCountAsync(CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         return await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT COUNT(*) FROM dbo.AppUser WHERE Role = @Admin AND IsActive = 1;", new { Admin = (byte)UserRole.Admin }, cancellationToken: ct));
     }
 
     public async Task<IReadOnlyList<UserRecord>> ListAsync(CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var rows = await conn.QueryAsync<UserRecord>(new CommandDefinition($"SELECT {Columns} FROM dbo.AppUser ORDER BY UserName;", cancellationToken: ct));
         return rows.Select(AsUtc).ToList();
     }
 
     public async Task<UserRecord?> GetAsync(Guid userId, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var user = await conn.QuerySingleOrDefaultAsync<UserRecord>(new CommandDefinition(
             $"SELECT {Columns} FROM dbo.AppUser WHERE UserId = @userId;", new { userId }, cancellationToken: ct));
         return user is null ? null : AsUtc(user);
@@ -60,7 +62,7 @@ public sealed class UserRepository(string connectionString)
 
     public async Task<UserRecord?> FindByNameAsync(string userName, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var user = await conn.QuerySingleOrDefaultAsync<UserRecord>(new CommandDefinition(
             $"SELECT {Columns} FROM dbo.AppUser WHERE UserName = @userName;", new { userName }, cancellationToken: ct));
         return user is null ? null : AsUtc(user);
@@ -69,7 +71,7 @@ public sealed class UserRepository(string connectionString)
     /// <returns>False when the user name is taken.</returns>
     public async Task<bool> CreateAsync(UserRecord user, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         try
         {
             await conn.ExecuteAsync(new CommandDefinition("""
@@ -89,7 +91,7 @@ public sealed class UserRepository(string connectionString)
     /// <summary>Updates profile, role and active flag; a role or active change also rotates the security stamp.</summary>
     public async Task UpdateAsync(Guid userId, string displayName, UserRole role, bool isActive, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE dbo.AppUser
             SET SecurityStamp = CASE WHEN Role <> @Role OR IsActive <> @IsActive THEN NEWID() ELSE SecurityStamp END,
@@ -101,7 +103,7 @@ public sealed class UserRepository(string connectionString)
     /// <summary>Sets a new hash, rotates the security stamp (signing out other sessions) and clears lockout.</summary>
     public async Task SetPasswordAsync(Guid userId, string passwordHash, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE dbo.AppUser
             SET PasswordHash = @passwordHash, SecurityStamp = NEWID(), FailedAttempts = 0, LockoutUntilUtc = NULL
@@ -112,14 +114,14 @@ public sealed class UserRepository(string connectionString)
     /// <summary>Re-hash after a successful login with an outdated hash format; keeps sessions.</summary>
     public async Task UpgradeHashAsync(Guid userId, string passwordHash, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await conn.ExecuteAsync(new CommandDefinition(
             "UPDATE dbo.AppUser SET PasswordHash = @passwordHash WHERE UserId = @userId;", new { userId, passwordHash }, cancellationToken: ct));
     }
 
     public async Task RecordFailureAsync(Guid userId, int maxAttempts, DateTime lockoutUntilUtc, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE dbo.AppUser
             SET FailedAttempts = FailedAttempts + 1,
@@ -130,7 +132,7 @@ public sealed class UserRepository(string connectionString)
 
     public async Task RecordSuccessAsync(Guid userId, DateTime nowUtc, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE dbo.AppUser SET FailedAttempts = 0, LockoutUntilUtc = NULL, LastLoginUtc = @nowUtc WHERE UserId = @userId;
             """, new { userId, nowUtc }, cancellationToken: ct));

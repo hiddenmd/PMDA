@@ -6,8 +6,10 @@ using PMDA.Core.Import;
 namespace PMDA.Data;
 
 /// <summary>Reads flights and stores/reads their import diagnostics.</summary>
-public sealed class FlightRepository(string connectionString)
+public sealed class FlightRepository(IConnectionSource connection)
 {
+    public FlightRepository(string connectionString) : this(new FixedConnection(connectionString)) { }
+
     private const string FlightColumns = """
         FlightId, CustomerId, FormatVersion, Tail, MissionId, StartUtc, FirstEventUtc, LastEventUtc,
         SourceName, Status, FailureReason, EventCount, ErrorCount, ImportedUtc
@@ -59,7 +61,7 @@ public sealed class FlightRepository(string connectionString)
             OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
             """;
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await using var grid = await conn.QueryMultipleAsync(new CommandDefinition(sql, args, cancellationToken: ct));
         var total = await grid.ReadSingleAsync<long>();
         var items = (await grid.ReadAsync<FlightRecord>()).Select(AsUtc).ToList();
@@ -77,7 +79,7 @@ public sealed class FlightRepository(string connectionString)
     {
         if (flightIds.Count == 0)
             return 0;
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         return await conn.ExecuteAsync(new CommandDefinition(
             "UPDATE dbo.Flight SET Status = @Deleting WHERE FlightId IN @Ids AND Status IN (@Completed, @Failed);",
             new { Ids = flightIds.ToArray(), Deleting = (byte)FlightStatus.Deleting, Completed = (byte)FlightStatus.Completed, Failed = (byte)FlightStatus.Failed },
@@ -92,7 +94,7 @@ public sealed class FlightRepository(string connectionString)
     /// <returns>The number of flights completely removed.</returns>
     public async Task<int> PurgeDeletedAsync(int batchSize, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var ids = (await conn.QueryAsync<Guid>(new CommandDefinition(
             "SELECT FlightId FROM dbo.Flight WHERE Status = @Deleting;", new { Deleting = (byte)FlightStatus.Deleting }, cancellationToken: ct))).AsList();
 
@@ -121,7 +123,7 @@ public sealed class FlightRepository(string connectionString)
     /// <returns>The number of flights deleted.</returns>
     public async Task<int> DeleteAllAsync(CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await conn.OpenAsync(ct);
         await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(ct);
         var count = await conn.ExecuteScalarAsync<int>(new CommandDefinition("SELECT COUNT(*) FROM dbo.Flight WITH (TABLOCKX);", transaction: tx, cancellationToken: ct));
@@ -137,7 +139,7 @@ public sealed class FlightRepository(string connectionString)
     /// <summary>Customers that have flights, for filter choices.</summary>
     public async Task<IReadOnlyList<string>> CustomersAsync(CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var rows = await conn.QueryAsync<string>(new CommandDefinition(
             "SELECT DISTINCT CustomerId FROM dbo.Flight WHERE Status <> 3 ORDER BY CustomerId;", cancellationToken: ct));
         return rows.AsList();
@@ -145,7 +147,7 @@ public sealed class FlightRepository(string connectionString)
 
     public async Task<FlightRecord?> GetAsync(Guid flightId, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var flight = await conn.QuerySingleOrDefaultAsync<FlightRecord>(new CommandDefinition(
             $"SELECT {FlightColumns} FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3;",
             new { flightId },
@@ -165,7 +167,7 @@ public sealed class FlightRepository(string connectionString)
         foreach (var d in items)
             table.Rows.Add(flightId, d.FileOffset, d.Message.Length > 1000 ? d.Message[..1000] : d.Message);
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         await conn.OpenAsync(ct);
         using var bulk = new SqlBulkCopy(conn) { DestinationTableName = "dbo.ImportDiagnostic" };
         foreach (DataColumn c in table.Columns)
@@ -175,7 +177,7 @@ public sealed class FlightRepository(string connectionString)
 
     public async Task<IReadOnlyList<DiagnosticRecord>> GetDiagnosticsAsync(Guid flightId, CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         var rows = await conn.QueryAsync<DiagnosticRecord>(new CommandDefinition(
             "SELECT FileOffset, Message FROM dbo.ImportDiagnostic WHERE FlightId = @flightId ORDER BY FileOffset;",
             new { flightId },
@@ -190,7 +192,7 @@ public sealed class FlightRepository(string connectionString)
     /// <returns>The number of flights marked failed.</returns>
     public async Task<int> FailInterruptedImportsAsync(CancellationToken ct)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new SqlConnection(connection.Value);
         return await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
             DELETE e FROM dbo.FlightEvent e
             JOIN dbo.Flight f ON f.FlightId = e.FlightId
