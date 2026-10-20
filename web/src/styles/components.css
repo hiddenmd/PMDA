@@ -126,6 +126,22 @@
   width: 100%;
   padding-left: calc(var(--space-md) * 3.5);
 }
+/* Find databases: the server form, then what was found. */
+.find-databases {
+  display: grid;
+  gap: var(--space-md);
+  min-width: min(640px, 80vw);
+}
+.find-databases__form {
+  display: grid;
+  gap: var(--space-md);
+}
+.find-databases__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
 /* A checkbox or radio with its label on one line. */
 .check-row {
   display: flex;

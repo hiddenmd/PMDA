@@ -31,7 +31,7 @@ internal sealed class MissionSimulator(Scenario scenario)
     {
         // A sortie flies a planned route from an airfield past fixed sites; otherwise laps of a random area.
         var plan = scenario.Sortie;
-        var start = plan?.StartUtc ?? new DateTime(2026, 3, 14, 9, 30, 0, DateTimeKind.Utc).AddMinutes(scenario.Seed % 120);
+        var start = scenario.StartUtc ?? plan?.StartUtc ?? new DateTime(2026, 3, 14, 9, 30, 0, DateTimeKind.Utc).AddMinutes(scenario.Seed % 120);
         var emitters = plan is null
             ? Enumerable.Range(1, scenario.Emitters).Select(id => CreateEmitter(id)).ToArray()
             : plan.Threats.Select((site, i) => CreateEmitter(i + 1, site)).ToArray();

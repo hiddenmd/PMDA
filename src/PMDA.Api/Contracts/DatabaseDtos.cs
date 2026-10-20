@@ -51,3 +51,21 @@ public sealed record DatabaseChoiceDto(string Id, string Name, bool ReadOnly);
 /// target unless read-only. <paramref name="DefaultImportId"/> is preselected for uploads.
 /// </summary>
 public sealed record DatabaseChoicesDto(string? DefaultImportId, IReadOnlyList<DatabaseChoiceDto> Databases);
+
+/// <summary>Where to look for PMDA databases, and how to sign in there. Sent in the body: it may carry a password.</summary>
+public sealed record DiscoverRequest(string Server, DatabaseAuthentication Authentication, string? User, string? Password, bool Encrypt, bool TrustServerCertificate);
+
+/// <param name="RegisteredId">Set when PMDA already works with this database.</param>
+/// <param name="CanAdd">False for names PMDA can't use (it only takes letters, digits, _ and -).</param>
+public sealed record DiscoveredDatabaseDto(
+    string Name,
+    bool IsPmda,
+    long? FlightCount,
+    string? RegisteredId,
+    string? RegisteredName,
+    bool IsTest,
+    string SuggestedName,
+    bool CanAdd);
+
+/// <param name="Error">Why the server could not be searched (nothing found then).</param>
+public sealed record DiscoveryResultDto(string Server, string? ServerVersion, string? Error, IReadOnlyList<DiscoveredDatabaseDto> Databases);

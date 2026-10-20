@@ -33,3 +33,10 @@ export async function removeDatabase(id: string): Promise<DatabaseList> {
   if (!response.ok || !data) throw new ApiError(response.status, isProblem(error) ? error : undefined)
   return data
 }
+
+export type DiscoverRequest = Schemas['DiscoverRequest']
+export type DiscoveryResult = Schemas['DiscoveryResultDto']
+export type DiscoveredDatabase = Schemas['DiscoveredDatabaseDto']
+
+/** The databases on a SQL Server, PMDA ones marked (admins). POST: the request may carry a password. */
+export const discoverDatabases = (body: DiscoverRequest) => unwrap(api.POST('/api/databases/discover', { body }))

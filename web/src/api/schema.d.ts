@@ -188,6 +188,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/databases/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** List the databases on a SQL Server, marking the PMDA ones and those already in the list. */
+        post: operations["DiscoverDatabases"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/databases/default": {
         parameters: {
             query?: never;
@@ -738,6 +755,31 @@ export interface components {
             /** Format: int64 */
             fileOffset: number;
             message: string;
+        };
+        DiscoveredDatabaseDto: {
+            name: string;
+            isPmda: boolean;
+            /** Format: int64 */
+            flightCount: number | null;
+            registeredId: string | null;
+            registeredName: string | null;
+            isTest: boolean;
+            suggestedName: string;
+            canAdd: boolean;
+        };
+        DiscoverRequest: {
+            server: string;
+            authentication: components["schemas"]["DatabaseAuthentication"];
+            user: string | null;
+            password: string | null;
+            encrypt: boolean;
+            trustServerCertificate: boolean;
+        };
+        DiscoveryResultDto: {
+            server: string;
+            serverVersion: string | null;
+            error: string | null;
+            databases: components["schemas"]["DiscoveredDatabaseDto"][];
         };
         DisplayStyle: {
             phosphor: string;
@@ -1513,6 +1555,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatabaseTestResultDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    DiscoverDatabases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoverRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryResultDto"];
                 };
             };
             /** @description Bad Request */

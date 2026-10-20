@@ -17,6 +17,8 @@ public static class DatabasesEndpoints
         var admin = group.MapGroup("").RequireAuthorization(Policies.Admin);
         admin.MapGet("", List).WithName("ListDatabases").WithSummary("Every registered flight database with its state.");
         admin.MapPost("/test", Test).WithName("TestDatabase").WithSummary("Try a connection without saving it.");
+        admin.MapPost("/discover", Discover).WithName("DiscoverDatabases")
+            .WithSummary("List the databases on a SQL Server, marking the PMDA ones and those already in the list.");
         admin.MapPost("", Add).WithName("AddDatabase").WithSummary("Register a flight database (creating it or its tables when asked).")
             .ProducesProblem(StatusCodes.Status400BadRequest);
         admin.MapPut("/default", SetDefault).WithName("SetDefaultDatabase").WithSummary("Choose where imports go by default.")
@@ -34,6 +36,19 @@ public static class DatabasesEndpoints
 
     private static async Task<Ok<DatabaseListDto>> List(DatabasesService databases, CancellationToken ct) =>
         TypedResults.Ok(await databases.ListAsync(ct));
+
+    private static async Task<Results<Ok<DiscoveryResultDto>, ValidationProblem>> Discover(
+        DiscoverRequest request, DatabaseDiscovery discovery, CancellationToken ct)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (string.IsNullOrWhiteSpace(request.Server) || request.Server.Length > 256)
+            errors["server"] = ["Enter the SQL Server name, for example localhost or sql01\\PMDA."];
+        if (request.Authentication == DatabaseAuthentication.SqlLogin && (string.IsNullOrWhiteSpace(request.User) || string.IsNullOrEmpty(request.Password)))
+            errors["user"] = ["A SQL login needs a login and a password."];
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+        return TypedResults.Ok(await discovery.DiscoverAsync(request, ct));
+    }
 
     private static async Task<Results<Ok<DatabaseTestResultDto>, ValidationProblem>> Test(
         DatabaseEntryRequest request, DatabasesService databases, CancellationToken ct)

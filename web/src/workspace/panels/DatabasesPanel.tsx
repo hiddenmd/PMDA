@@ -5,11 +5,12 @@ import { databaseKeys, listDatabases, removeDatabase, setDefaultDatabase, update
 import { flightKeys } from '../../hooks/useFlights'
 import { useAuth } from '../../auth/authContext'
 import { Dialog } from '../../components/Dialog'
-import { AlertCircle, Database, Pencil, Plus, Trash2 } from '../../components/icons'
+import { AlertCircle, Database, Pencil, Plus, Search, Trash2 } from '../../components/icons'
 import { DatabaseForm } from '../../features/database/DatabaseForm'
+import { FindDatabases } from '../../features/database/FindDatabases'
 import { formatNumber } from '../../lib/format'
 
-type Editing = { mode: 'add' } | { mode: 'edit'; database: DatabaseInfo } | { mode: 'remove'; database: DatabaseInfo } | null
+type Editing = { mode: 'add' } | { mode: 'find' } | { mode: 'edit'; database: DatabaseInfo } | { mode: 'remove'; database: DatabaseInfo } | null
 
 const STATE_CHIP = { Ready: 'chip--completed', Unreachable: 'chip--failed', Disabled: 'chip--deleting' } as const
 
@@ -37,9 +38,14 @@ export function DatabasesPanel() {
     <div className="panel-body">
       <div className="section-title">
         <h3>Databases {databases.data && <span className="muted mono">({databases.data.databases.length})</span>}</h3>
-        <button type="button" className="btn btn--primary btn--compact" onClick={() => setEditing({ mode: 'add' })}>
-          <Plus size={14} aria-hidden /> Add database
-        </button>
+        <span style={{ display: 'flex', gap: 4 }}>
+          <button type="button" className="btn btn--secondary btn--compact" onClick={() => setEditing({ mode: 'find' })}>
+            <Search size={14} aria-hidden /> Find databases
+          </button>
+          <button type="button" className="btn btn--primary btn--compact" onClick={() => setEditing({ mode: 'add' })}>
+            <Plus size={14} aria-hidden /> Add database
+          </button>
+        </span>
       </div>
       <p className="muted small">
         PMDA lists the flights of every enabled database together. Imports go to the default unless the uploader picks another; read-only databases
@@ -66,7 +72,10 @@ export function DatabasesPanel() {
       {databases.data && databases.data.databases.length === 0 && (
         <div className="empty">
           <Database size={20} aria-hidden />
-          <p>No databases yet. Add one to start importing flights.</p>
+          <p>No databases yet. Find the PMDA databases on a SQL Server, or add one to start importing flights.</p>
+          <button type="button" className="btn btn--secondary btn--compact" onClick={() => setEditing({ mode: 'find' })}>
+            <Search size={14} aria-hidden /> Find databases
+          </button>
         </div>
       )}
       {databases.data && databases.data.databases.length > 0 && (
@@ -157,6 +166,11 @@ export function DatabasesPanel() {
               setEditing(null)
             }}
           />
+        )}
+      </Dialog>
+      <Dialog open={editing?.mode === 'find'} title="Find databases" icon={<Search size={18} aria-hidden />} onClose={() => setEditing(null)}>
+        {editing?.mode === 'find' && (
+          <FindDatabases defaultServer={databases.data?.databases[0]?.settings.server ?? 'localhost'} onAdded={applied} />
         )}
       </Dialog>
       <Dialog

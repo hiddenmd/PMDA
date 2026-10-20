@@ -12,7 +12,8 @@ internal sealed record Scenario(
     int CorruptRecords = 0,
     bool TruncateEnd = false,
     int EmitterRateHz = 20,
-    SortiePlan? Sortie = null)
+    SortiePlan? Sortie = null,
+    DateTime? StartUtc = null)
 {
     public static readonly Scenario[] Standard =
     [

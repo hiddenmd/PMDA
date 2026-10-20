@@ -33,6 +33,7 @@ builder.Services.AddSingleton<DatabaseRegistryStore>();
 builder.Services.AddSingleton<FlightStores>();
 builder.Services.AddSingleton<FlightCatalog>();
 builder.Services.AddSingleton<DatabasesService>();
+builder.Services.AddSingleton<DatabaseDiscovery>();
 var database = builder.Configuration.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>() ?? new DatabaseOptions();
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));

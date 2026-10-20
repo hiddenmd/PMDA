@@ -99,6 +99,42 @@ public sealed class DatabasesApiTests(SqlDatabase db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Discovery_finds_the_pmda_databases_on_a_server()
+    {
+        await TestFlights.StoreAsync(db.SecondConnectionString, [TestFlights.Emitter(0, 1)]);
+        var admin = await _api.CreateSignedInClientAsync();
+        var server = new SqlConnectionStringBuilder(db.ConnectionString).DataSource;
+        var response = await admin.PostAsJsonAsync("/api/databases/discover",
+            new DiscoverRequest(server, DatabaseAuthentication.Windows, null, null, true, true), Json);
+        var result = (await response.Content.ReadFromJsonAsync<DiscoveryResultDto>(Json))!;
+
+        Assert.Null(result.Error);
+        var main = result.Databases.Single(d => d.Name.Equals(new SqlConnectionStringBuilder(db.ConnectionString).InitialCatalog, StringComparison.OrdinalIgnoreCase));
+        var bravo = result.Databases.Single(d => d.Name.Equals(new SqlConnectionStringBuilder(db.SecondConnectionString).InitialCatalog, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal((true, "main", true), (main.IsPmda, main.RegisteredId, main.IsTest));
+        Assert.Equal((true, (string?)null, 1L), (bravo.IsPmda, bravo.RegisteredId, bravo.FlightCount));
+        Assert.Equal("B Test", bravo.SuggestedName);
+        Assert.DoesNotContain(result.Databases, d => d.Name is "master" or "tempdb" or "model" or "msdb");
+        // Databases to add come first.
+        Assert.True(result.Databases.ToList().IndexOf(bravo) < result.Databases.ToList().IndexOf(main));
+
+        var down = (await (await admin.PostAsJsonAsync("/api/databases/discover",
+            new DiscoverRequest("127.0.0.1,1", DatabaseAuthentication.Windows, null, null, true, true), Json)).Content.ReadFromJsonAsync<DiscoveryResultDto>(Json))!;
+        Assert.False(string.IsNullOrEmpty(down.Error));
+
+        var analyst = await _api.CreateSignedInClientAsync(UserRole.Analyst);
+        Assert.Equal(HttpStatusCode.Forbidden, (await analyst.PostAsJsonAsync("/api/databases/discover",
+            new DiscoverRequest(server, DatabaseAuthentication.Windows, null, null, true, true), Json)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("PMDA_Ops_Jordan", "Ops Jordan")]
+    [InlineData("PMDA", "PMDA")]
+    [InlineData("Flights-2025", "Flights 2025")]
+    public void Discovered_databases_get_readable_names(string database, string name) =>
+        Assert.Equal(name, DatabaseDiscovery.SuggestedName(database));
+
+    [Fact]
     public async Task Connections_are_tested_without_saving()
     {
         var admin = await _api.CreateSignedInClientAsync();
