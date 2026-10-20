@@ -83,10 +83,29 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
         return client;
     }
 
-    public async Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] content, string fileName = "flight.bin")
+    /// <summary>
+    /// Registers these flight databases for the host (call before the first request). Each is (id, name, connection
+    /// string, read-only); the first writable one is the import default.
+    /// </summary>
+    public void UseDatabases(params (string Id, string Name, string ConnectionString, bool ReadOnly)[] databases)
+    {
+        var entries = databases.Select(d =>
+        {
+            var b = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(d.ConnectionString);
+            return new PMDA.Api.Database.DatabaseEntry(d.Id, d.Name, b.DataSource, b.InitialCatalog, PMDA.Api.Database.DatabaseAuthentication.Windows,
+                null, null, b.Encrypt != Microsoft.Data.SqlClient.SqlConnectionEncryptOption.Optional, b.TrustServerCertificate, d.ReadOnly, Enabled: true);
+        }).ToList();
+        var registry = new PMDA.Api.Database.DatabaseRegistry(entries.FirstOrDefault(e => !e.ReadOnly)?.Id, entries);
+        Directory.CreateDirectory(Path.GetDirectoryName(RegistryPath)!);
+        File.WriteAllText(RegistryPath, JsonSerializer.Serialize(registry, Json));
+    }
+
+    public async Task<HttpResponseMessage> UploadAsync(HttpClient client, byte[] content, string fileName = "flight.bin", string? databaseId = null)
     {
         using var form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(content), "file", fileName);
+        if (databaseId is not null)
+            form.Add(new StringContent(databaseId), "databaseId");
         return await client.PostAsync("/api/imports", form);
     }
 

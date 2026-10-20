@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using PMDA.Api.Contracts;
+using PMDA.Api.Database;
 
 namespace PMDA.Api.Imports;
 
@@ -32,15 +33,24 @@ public static class ImportEndpoints
     }
 
     private static async Task<Results<Accepted<ImportJobDto>, ProblemHttpResult>> Upload(
-        IFormFile file, ImportService imports, IOptions<ImportsOptions> options, CancellationToken ct)
+        IFormFile file, [FromForm(Name = "databaseId")] string? databaseId, ImportService imports, FlightStores stores,
+        IOptions<ImportsOptions> options, CancellationToken ct)
     {
+        // The chosen database, else the import default; never a read-only or disabled one.
+        var target = string.IsNullOrWhiteSpace(databaseId) ? stores.ImportDefault : stores.Get(databaseId.Trim());
+        if (target is null)
+            return TypedResults.Problem(
+                string.IsNullOrWhiteSpace(databaseId) ? "There is no database to import into. An administrator adds one under Manage databases." : $"There is no database '{databaseId}'.",
+                statusCode: StatusCodes.Status400BadRequest);
+        if (!target.Usable || target.ReadOnly)
+            return TypedResults.Problem($"'{target.Name}' does not take imports ({(target.ReadOnly ? "read-only" : "disabled or unavailable")}).", statusCode: StatusCodes.Status400BadRequest);
         if (file.Length == 0)
             return TypedResults.Problem("The uploaded file is empty.", statusCode: StatusCodes.Status400BadRequest);
         if (file.Length > options.Value.MaxUploadBytes)
             return TypedResults.Problem($"The file is larger than {options.Value.MaxUploadBytes} bytes.", statusCode: StatusCodes.Status413PayloadTooLarge);
 
         await using var content = file.OpenReadStream();
-        var result = await imports.SubmitAsync(content, file.FileName, file.Length, ct);
+        var result = await imports.SubmitAsync(content, file.FileName, file.Length, target, ct);
         if (result.Status == SubmitStatus.QueueFull)
             return TypedResults.Problem("The import queue is full. Try again later.", statusCode: StatusCodes.Status503ServiceUnavailable);
 

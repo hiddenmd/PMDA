@@ -31,7 +31,8 @@ public static class ImportsModule
         services.AddSingleton<ImportNotifier>();
         services.AddSingleton<ImportService>();
         services.AddSingleton<ImportRunner>();
-        services.AddHostedService<ImportWorker>();
+        services.AddSingleton<ImportWorker>();
+        services.AddHostedService(sp => sp.GetRequiredService<ImportWorker>());
         return services;
     }
 }

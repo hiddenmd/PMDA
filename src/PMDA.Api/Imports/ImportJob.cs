@@ -22,7 +22,9 @@ public sealed record ImportJobSnapshot(
     DateTime? FinishedUtc,
     ImportProgress? Progress,
     Guid? FlightId,
-    string? FailureReason);
+    string? FailureReason,
+    string? DatabaseId = null,
+    string? DatabaseName = null);
 
 /// <summary>
 /// One import and its lifecycle. All state changes go through <see cref="ImportStates"/>;
@@ -42,9 +44,11 @@ public sealed class ImportJob
     private Guid? _flightId;
     private string? _failureReason;
 
-    public ImportJob(Guid id, string fileName, long sizeBytes, string tempPath, TimeProvider time)
+    public ImportJob(Guid id, string fileName, long sizeBytes, string tempPath, TimeProvider time, string? databaseId = null, string? databaseName = null)
     {
         Id = id;
+        DatabaseId = databaseId;
+        DatabaseName = databaseName;
         FileName = fileName;
         SizeBytes = sizeBytes;
         TempPath = tempPath;
@@ -53,6 +57,9 @@ public sealed class ImportJob
     }
 
     public Guid Id { get; }
+    /// <summary>The flight database the recording is imported into.</summary>
+    public string? DatabaseId { get; }
+    public string? DatabaseName { get; }
     public string FileName { get; }
     public long SizeBytes { get; }
     /// <summary>Uploaded file waiting to be imported; deleted by the runner when done.</summary>
@@ -132,7 +139,8 @@ public sealed class ImportJob
     public ImportJobSnapshot Snapshot()
     {
         lock (_gate)
-            return new ImportJobSnapshot(Id, _version, FileName, SizeBytes, _state, CreatedUtc, _startedUtc, _finishedUtc, _progress, _flightId, _failureReason);
+            return new ImportJobSnapshot(Id, _version, FileName, SizeBytes, _state, CreatedUtc, _startedUtc, _finishedUtc, _progress, _flightId, _failureReason,
+                DatabaseId, DatabaseName);
     }
 
     private DateTime Now => _time.GetUtcNow().UtcDateTime;

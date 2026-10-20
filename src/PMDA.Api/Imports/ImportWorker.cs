@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using PMDA.Data;
+using PMDA.Api.Database;
 
 namespace PMDA.Api.Imports;
 
@@ -7,26 +7,14 @@ namespace PMDA.Api.Imports;
 public sealed class ImportWorker(
     ImportQueue queue,
     ImportRunner runner,
-    FlightRepository flights,
-    DatabaseConnection connection,
+    FlightStores stores,
     IOptions<ImportsOptions> options,
     ILogger<ImportWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
-        {
-            await connection.WhenConfiguredAsync(stoppingToken); // set up from the app, possibly after start-up
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-
-        // Jobs live in memory: anything still Importing was cut off by the previous shutdown.
-        var interrupted = await flights.FailInterruptedImportsAsync(stoppingToken);
-        if (interrupted > 0)
-            logger.LogWarning("Marked {Count} interrupted import(s) as failed", interrupted);
+        foreach (var store in stores.Writable)
+            await RecoverAsync(store, stoppingToken);
 
         var parallel = new ParallelOptions
         {
@@ -41,6 +29,24 @@ public sealed class ImportWorker(
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             // shutting down
+        }
+    }
+
+    /// <summary>
+    /// Jobs live in memory: flights still Importing in a database were cut off by the previous shutdown. Run at
+    /// start for every database, and for a database when it is added.
+    /// </summary>
+    public async Task RecoverAsync(FlightStore store, CancellationToken ct)
+    {
+        try
+        {
+            var interrupted = await store.Flights.FailInterruptedImportsAsync(ct);
+            if (interrupted > 0)
+                logger.LogWarning("Marked {Count} interrupted import(s) in {Database} as failed", interrupted, store.Name);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Could not check {Database} for interrupted imports", store.Name);
         }
     }
 }

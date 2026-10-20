@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Data.SqlClient;
 using PMDA.Data;
 
 namespace PMDA.Api.Auth;
@@ -56,16 +55,7 @@ public static class AuthModule
         var users = ctx.HttpContext.RequestServices.GetRequiredService<IUserStore>();
         var id = ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
         var stamp = ctx.Principal?.FindFirstValue(PmdaClaims.SecurityStamp);
-        UserRecord? user;
-        try
-        {
-            user = Guid.TryParse(id, out var userId) ? await users.GetAsync(userId, ctx.HttpContext.RequestAborted) : null;
-        }
-        catch (Exception ex) when (ex is SqlException or DatabaseNotConfiguredException)
-        {
-            ctx.RejectPrincipal(); // anonymous for this request only: the session survives a database outage
-            return;
-        }
+        var user = Guid.TryParse(id, out var userId) ? await users.GetAsync(userId, ctx.HttpContext.RequestAborted) : null;
         if (user is null || !user.IsActive || user.SecurityStamp.ToString() != stamp)
         {
             ctx.RejectPrincipal();

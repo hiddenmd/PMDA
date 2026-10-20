@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using PMDA.Api.Database;
 
 namespace PMDA.Api.Imports;
 
@@ -14,7 +15,7 @@ public sealed class ImportService(
     IOptions<ImportsOptions> options,
     TimeProvider time)
 {
-    public async Task<SubmitResult> SubmitAsync(Stream content, string fileName, long sizeBytes, CancellationToken ct)
+    public async Task<SubmitResult> SubmitAsync(Stream content, string fileName, long sizeBytes, FlightStore target, CancellationToken ct)
     {
         var id = Guid.NewGuid();
         var directory = options.Value.ResolvedTempDirectory;
@@ -32,7 +33,7 @@ public sealed class ImportService(
             throw;
         }
 
-        var job = new ImportJob(id, Path.GetFileName(fileName), sizeBytes, tempPath, time);
+        var job = new ImportJob(id, Path.GetFileName(fileName), sizeBytes, tempPath, time, target.Id, target.Name);
         notifier.Watch(job);
         // In the store before the worker can see it, so GET never misses a running job.
         store.Add(job);

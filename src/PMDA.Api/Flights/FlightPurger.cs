@@ -1,3 +1,4 @@
+using PMDA.Api.Database;
 using PMDA.Data;
 
 namespace PMDA.Api.Flights;
@@ -7,7 +8,7 @@ namespace PMDA.Api.Flights;
 /// (instant, they disappear everywhere); this service then purges their events in batches, so a
 /// user never waits for millions of rows and an aborted request cannot roll anything back.
 /// </summary>
-public sealed class FlightPurger(FlightRepository flights, DatabaseConnection connection, ILogger<FlightPurger> logger) : BackgroundService
+public sealed class FlightPurger(FlightStores stores, ILogger<FlightPurger> logger) : BackgroundService
 {
     public const int BatchSize = 500_000;
     private static readonly TimeSpan Fallback = TimeSpan.FromSeconds(30);
@@ -23,31 +24,26 @@ public sealed class FlightPurger(FlightRepository flights, DatabaseConnection co
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
-        {
-            await connection.WhenConfiguredAsync(stoppingToken); // set up from the app, possibly after start-up
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-
         // Also finishes deletions a previous run of the server did not complete.
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
+            // Each database on its own: one that is down never holds up the others.
+            foreach (var store in stores.Writable)
             {
-                var purged = await flights.PurgeDeletedAsync(BatchSize, stoppingToken);
-                if (purged > 0)
-                    logger.LogInformation("Purged {Count} deleted flight(s)", purged);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Purging deleted flights failed; will retry");
+                try
+                {
+                    var purged = await store.Flights.PurgeDeletedAsync(BatchSize, stoppingToken);
+                    if (purged > 0)
+                        logger.LogInformation("Purged {Count} deleted flight(s) in {Database}", purged, store.Name);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Purging deleted flights in {Database} failed; will retry", store.Name);
+                }
             }
 
             try

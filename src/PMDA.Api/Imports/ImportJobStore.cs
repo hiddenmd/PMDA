@@ -18,6 +18,9 @@ public sealed class ImportJobStore
     /// <summary>True while any import is queued or running.</summary>
     public bool HasActiveJobs() => _jobs.Values.Any(j => !ImportStates.IsFinal(j.State));
 
+    /// <summary>True while any import into the given database is queued or running.</summary>
+    public bool HasActiveJobs(string databaseId) => _jobs.Values.Any(j => j.DatabaseId == databaseId && !ImportStates.IsFinal(j.State));
+
     public ImportJob? Find(Guid id) => _jobs.GetValueOrDefault(id);
 
     public IReadOnlyList<ImportJobSnapshot> List() =>

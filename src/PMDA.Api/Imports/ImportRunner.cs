@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using PMDA.Api.Database;
 using PMDA.Data;
 using PMDA.Import;
 
@@ -7,8 +8,7 @@ namespace PMDA.Api.Imports;
 /// <summary>Runs one queued job to a final state and always removes its uploaded file.</summary>
 public sealed class ImportRunner(
     FlightImporter importer,
-    FlightRepository flights,
-    IConnectionSource connection,
+    FlightStores stores,
     IOptions<ImportsOptions> options,
     ILogger<ImportRunner> logger)
 {
@@ -49,17 +49,26 @@ public sealed class ImportRunner(
 
     private async Task ImportAsync(ImportJob job, CancellationToken ct)
     {
+        // The database may have been removed or switched off since the upload was queued.
+        if (stores.Get(job.DatabaseId) is not { Usable: true, ReadOnly: false } store)
+        {
+            job.Fail("The database this import was going to was removed, disabled or made read-only.");
+            return;
+        }
+        var flights = store.Flights;
         ImportResult result;
         await using (var file = new FileStream(job.TempPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16,
                          FileOptions.Asynchronous | FileOptions.SequentialScan))
         {
-            var sink = new SqlEventSink(connection.Value, _writeGate);
+            var sink = new SqlEventSink(store.ConnectionString!, _writeGate);
             var importOptions = new ImportOptions { MaxParallelWrites = options.Value.SqlWriteStreams };
             result = await importer.ImportAsync(file, job.FileName, sink, importOptions, new InlineProgress(job.ReportProgress), ct);
         }
 
         // A header means the sink created the flight row, so diagnostics have a flight to belong to.
         var flightExists = result.Header is not null && result.Status != ImportStatus.Duplicate;
+        if (flightExists)
+            stores.Remember(result.FlightId, store.Id);
         if (flightExists && result.Diagnostics.Count > 0)
             await flights.SaveDiagnosticsAsync(result.FlightId, result.Diagnostics, ct);
 

@@ -13,20 +13,31 @@ public sealed class SqlDatabase : IAsyncLifetime
         Environment.GetEnvironmentVariable("PMDA_TEST_SQL")
         ?? "Server=localhost;Database=PMDA_Test;Integrated Security=true;TrustServerCertificate=true";
 
+    /// <summary>A second flight database, for tests across several databases. Override with PMDA_TEST_SQL_B.</summary>
+    public string SecondConnectionString { get; } =
+        Environment.GetEnvironmentVariable("PMDA_TEST_SQL_B")
+        ?? "Server=localhost;Database=PMDA_B_Test;Integrated Security=true;TrustServerCertificate=true";
+
     public async Task InitializeAsync()
     {
-        if (!new SqlConnectionStringBuilder(ConnectionString).InitialCatalog.EndsWith("_Test", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Refusing to run tests against a database whose name does not end in _Test.");
-        await SchemaInstaller.EnsureDatabaseAsync(ConnectionString);
+        foreach (var cs in new[] { ConnectionString, SecondConnectionString })
+        {
+            if (!new SqlConnectionStringBuilder(cs).InitialCatalog.EndsWith("_Test", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Refusing to run tests against a database whose name does not end in _Test.");
+            await SchemaInstaller.EnsureDatabaseAsync(cs);
+        }
     }
 
     public async Task ResetAsync()
     {
-        await using var conn = new SqlConnection(ConnectionString);
-        await conn.OpenAsync();
-        await using var cmd = new SqlCommand(
-            "DELETE dbo.ImportDiagnostic; DELETE dbo.FlightEvent; DELETE dbo.Flight;", conn);
-        await cmd.ExecuteNonQueryAsync();
+        foreach (var cs in new[] { ConnectionString, SecondConnectionString })
+        {
+            await using var conn = new SqlConnection(cs);
+            await conn.OpenAsync();
+            await using var cmd = new SqlCommand(
+                "DELETE dbo.ImportDiagnostic; DELETE dbo.FlightEvent; DELETE dbo.Flight;", conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     public async Task<long> ScalarAsync(string sql, object? flightId = null)

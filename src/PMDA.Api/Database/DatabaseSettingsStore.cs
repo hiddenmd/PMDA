@@ -1,7 +1,4 @@
-using System.Runtime.Versioning;
-using System.Security.AccessControl;
 using System.Security.Cryptography;
-using System.Security.Principal;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -9,8 +6,8 @@ using Microsoft.Extensions.Options;
 namespace PMDA.Api.Database;
 
 /// <summary>
-/// The in-app database settings file (default %ProgramData%\PMDA\database.json). It is readable only by
-/// Administrators, SYSTEM and the account the API runs as, and the password inside is DPAPI-protected.
+/// The single-database settings file of earlier versions (default %ProgramData%\PMDA\database.json). Read once, to
+/// register that database as "main" (and to find the user accounts to move); the database list replaced it.
 /// </summary>
 public sealed class DatabaseSettingsStore(IOptions<DatabaseOptions> options, ILogger<DatabaseSettingsStore> logger)
 {
@@ -67,27 +64,7 @@ public sealed class DatabaseSettingsStore(IOptions<DatabaseOptions> options, ILo
     /// <summary>Writes the file atomically, readable only by Administrators, SYSTEM and this account.</summary>
     public void Save(DatabaseSettings settings)
     {
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
-        var temp = Path + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(settings, Json));
-        if (OperatingSystem.IsWindows())
-            Restrict(temp);
-        File.Move(temp, Path, overwrite: true);
+        SecureFile.WriteAllText(Path, JsonSerializer.Serialize(settings, Json));
         LoadError = null;
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static void Restrict(string file)
-    {
-        var security = new FileSecurity();
-        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-        foreach (var sid in new[]
-                 {
-                     new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
-                     new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
-                     WindowsIdentity.GetCurrent().User!,
-                 })
-            security.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl, AccessControlType.Allow));
-        new FileInfo(file).SetAccessControl(security);
     }
 }

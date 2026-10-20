@@ -145,6 +145,13 @@ public sealed class FlightRepository(IConnectionSource connection)
         return rows.AsList();
     }
 
+    /// <summary>Flights in this database (deleted ones do not count).</summary>
+    public async Task<long> CountAsync(CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connection.Value);
+        return await conn.ExecuteScalarAsync<long>(new CommandDefinition("SELECT COUNT_BIG(*) FROM dbo.Flight WHERE Status <> 3;", cancellationToken: ct));
+    }
+
     /// <summary>Whether this database holds the flight (deleted flights do not count).</summary>
     public async Task<bool> ExistsAsync(Guid flightId, CancellationToken ct)
     {

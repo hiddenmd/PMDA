@@ -12,7 +12,7 @@ public static class DataViewEndpoints
 
     public static IEndpointRouteBuilder MapDataViews(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/flights/{id:guid}").WithTags("Data views");
+        var group = app.MapGroup("/api/flights/{id:guid}").WithFlightStore().WithTags("Data views");
 
         group.MapGet("/events", Events).WithName("GetFlightEvents")
             .WithSummary("Raw events of one type in a time window (max 1 h), paged by sequence number.")

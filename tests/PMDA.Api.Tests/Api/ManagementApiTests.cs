@@ -131,7 +131,7 @@ public sealed class ManagementApiTests(SqlDatabase db) : IAsyncLifetime
         hub.On(nameof(IImportClient.FlightsChanged), () => changed.TrySetResult());
         await hub.StartAsync();
 
-        var response = await _client.DeleteAsync("/api/flights?confirm=DELETE");
+        var response = await _client.DeleteAsync("/api/flights?confirm=DELETE&databaseId=main");
 
         Assert.Equal(2, (await response.Content.ReadFromJsonAsync<DeleteResultDto>(Json))!.Deleted);
         Assert.Equal(0, await Count("Flight"));
@@ -146,7 +146,7 @@ public sealed class ManagementApiTests(SqlDatabase db) : IAsyncLifetime
         var job = new ImportJob(Guid.NewGuid(), "running.bin", 1, "none", TimeProvider.System);
         _api.Service<ImportJobStore>().Add(job); // queued, never picked up
 
-        var response = await _client.DeleteAsync("/api/flights?confirm=DELETE");
+        var response = await _client.DeleteAsync("/api/flights?confirm=DELETE&databaseId=main");
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(1, await Count("Flight"));

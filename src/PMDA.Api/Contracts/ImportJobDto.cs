@@ -17,7 +17,9 @@ public sealed record ImportJobDto(
     long EventCount,
     long ErrorCount,
     Guid? FlightId,
-    string? FailureReason)
+    string? FailureReason,
+    string? DatabaseId,
+    string? DatabaseName)
 {
     public static ImportJobDto From(ImportJobSnapshot s) => new(
         s.Id,
@@ -33,5 +35,7 @@ public sealed record ImportJobDto(
         s.Progress?.EventCount ?? 0,
         s.Progress?.ErrorCount ?? 0,
         s.FlightId,
-        s.FailureReason);
+        s.FailureReason,
+        s.DatabaseId,
+        s.DatabaseName);
 }

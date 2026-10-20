@@ -13,7 +13,7 @@ public static class PlaybackEndpoints
 
     public static IEndpointRouteBuilder MapPlayback(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/flights/{id:guid}").WithTags("Playback");
+        var group = app.MapGroup("/api/flights/{id:guid}").WithFlightStore().WithTags("Playback");
 
         group.MapGet("/frames", Frames).WithName("GetPlaybackFrames")
             .WithSummary("Events summarised per time step, for playback. Offsets are ms from the flight start.")
