@@ -145,6 +145,15 @@ public sealed class FlightRepository(IConnectionSource connection)
         return rows.AsList();
     }
 
+    /// <summary>Whether this database holds the flight (deleted flights do not count).</summary>
+    public async Task<bool> ExistsAsync(Guid flightId, CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connection.Value);
+        return await conn.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CAST(CASE WHEN EXISTS (SELECT 1 FROM dbo.Flight WHERE FlightId = @flightId AND Status <> 3) THEN 1 ELSE 0 END AS bit);",
+            new { flightId }, cancellationToken: ct));
+    }
+
     public async Task<FlightRecord?> GetAsync(Guid flightId, CancellationToken ct)
     {
         await using var conn = new SqlConnection(connection.Value);

@@ -29,12 +29,16 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
     /// <summary>This host's own user accounts file (in the same temporary folder).</summary>
     public string UsersPath => Path.Combine(Path.GetDirectoryName(SettingsPath)!, "users.json");
 
+    /// <summary>This host's own list of flight databases (none until a test writes one: then the connection string is "main").</summary>
+    public string RegistryPath => Path.Combine(Path.GetDirectoryName(SettingsPath)!, "databases.json");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Pmda", db.ConnectionString);
         builder.UseSetting("Database:SettingsPath", SettingsPath);
         builder.UseSetting("Auth:UsersPath", UsersPath);
+        builder.UseSetting("Database:RegistryPath", RegistryPath);
         builder.UseSetting("Auth:MigrateUsersFromSql", "false");
         builder.UseSetting("Database:EnsureCreatedOnStart", "false");
         builder.UseSetting("Imports:TempDirectory", UploadDirectory);

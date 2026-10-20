@@ -28,6 +28,8 @@ builder.Services.AddSingleton<IUserStore>(sp =>
     return new FileUserStore(auth, sp.GetRequiredService<ILogger<FileUserStore>>(), legacy, sp.GetRequiredService<TimeProvider>());
 });
 builder.Services.AddSingleton<DatabaseSettingsStore>();
+builder.Services.AddSingleton<DatabaseRegistryStore>();
+builder.Services.AddSingleton<FlightStores>();
 builder.Services.AddSingleton<DatabaseSetupService>();
 var database = builder.Configuration.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>() ?? new DatabaseOptions();
 

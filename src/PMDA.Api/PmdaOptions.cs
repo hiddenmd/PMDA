@@ -12,6 +12,9 @@ public sealed class DatabaseOptions
 
     /// <summary>Where the in-app database settings are saved. Default: %ProgramData%\PMDA\database.json.</summary>
     public string? SettingsPath { get; set; }
+
+    /// <summary>The list of flight databases. Default: %ProgramData%\PMDA\databases.json.</summary>
+    public string? RegistryPath { get; set; }
 }
 
 public sealed class ImportsOptions
