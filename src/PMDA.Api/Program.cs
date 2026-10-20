@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.ResponseCompression;
 using PMDA.Api;
 using PMDA.Api.Auth;
+using PMDA.Api.Database;
 using PMDA.Api.Symbology;
 using PMDA.Api.Flights;
 using PMDA.Api.Imports;
@@ -10,14 +11,17 @@ using PMDA.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString(DatabaseOptions.ConnectionStringName)
-    ?? throw new InvalidOperationException($"Connection string '{DatabaseOptions.ConnectionStringName}' is missing.");
-builder.Services.AddSingleton(new SqlConnectionString(connectionString));
-builder.Services.AddSingleton(new FlightRepository(connectionString));
-builder.Services.AddSingleton(new PlaybackRepository(connectionString));
-builder.Services.AddSingleton(new EventRepository(connectionString));
-builder.Services.AddSingleton(new SeriesRepository(connectionString));
-builder.Services.AddSingleton(new UserRepository(connectionString));
+// One swappable connection: set at start-up (settings file, else appsettings) or later from the app.
+builder.Services.AddOptions<DatabaseOptions>().Bind(builder.Configuration.GetSection(DatabaseOptions.Section));
+builder.Services.AddSingleton<DatabaseConnection>();
+builder.Services.AddSingleton<IConnectionSource>(sp => sp.GetRequiredService<DatabaseConnection>());
+builder.Services.AddSingleton(sp => new FlightRepository(sp.GetRequiredService<IConnectionSource>()));
+builder.Services.AddSingleton(sp => new PlaybackRepository(sp.GetRequiredService<IConnectionSource>()));
+builder.Services.AddSingleton(sp => new EventRepository(sp.GetRequiredService<IConnectionSource>()));
+builder.Services.AddSingleton(sp => new SeriesRepository(sp.GetRequiredService<IConnectionSource>()));
+builder.Services.AddSingleton(sp => new UserRepository(sp.GetRequiredService<IConnectionSource>()));
+builder.Services.AddSingleton<DatabaseSettingsStore>();
+builder.Services.AddSingleton<DatabaseSetupService>();
 var database = builder.Configuration.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>() ?? new DatabaseOptions();
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -50,12 +54,26 @@ var app = builder.Build();
 // Load and validate RWR symbology now: a bad profile file should stop start-up, not a debrief.
 app.Services.GetRequiredService<SymbologyCatalog>();
 
-if (database.EnsureCreatedOnStart)
-    await SchemaInstaller.EnsureDatabaseAsync(connectionString);
+await app.Services.GetRequiredService<DatabaseSetupService>()
+    .InitializeAsync(builder.Configuration.GetConnectionString(DatabaseOptions.ConnectionStringName), database.EnsureCreatedOnStart);
 
 app.UseResponseCompression();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+// Without a database only the database settings work; everything else says so instead of failing deep inside.
+app.Use(async (http, next) =>
+{
+    if (http.Request.Path.StartsWithSegments("/api") && !http.Request.Path.StartsWithSegments("/api/database")
+        && !http.RequestServices.GetRequiredService<DatabaseConnection>().IsConfigured)
+    {
+        await Results.Problem(
+            title: "Database not configured",
+            detail: "PMDA is not connected to a database yet. Set it up on the server machine.",
+            statusCode: StatusCodes.Status503ServiceUnavailable).ExecuteAsync(http);
+        return;
+    }
+    await next(http);
+});
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -67,6 +85,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "PMDA API v1"));
 
 app.MapAuth();
+app.MapDatabase();
 app.MapUsers();
 app.MapImports();
 app.MapFlights();

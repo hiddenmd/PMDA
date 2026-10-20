@@ -8,7 +8,7 @@ namespace PMDA.Api.Imports;
 public sealed class ImportRunner(
     FlightImporter importer,
     FlightRepository flights,
-    SqlConnectionString connection,
+    IConnectionSource connection,
     IOptions<ImportsOptions> options,
     ILogger<ImportRunner> logger)
 {
@@ -98,6 +98,3 @@ public sealed class ImportRunner(
         public void Report(ImportProgress value) => report(value);
     }
 }
-
-/// <summary>The PMDA database connection string, resolved once at startup.</summary>
-public sealed record SqlConnectionString(string Value);

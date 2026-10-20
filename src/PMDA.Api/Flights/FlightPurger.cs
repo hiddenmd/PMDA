@@ -7,7 +7,7 @@ namespace PMDA.Api.Flights;
 /// (instant, they disappear everywhere); this service then purges their events in batches, so a
 /// user never waits for millions of rows and an aborted request cannot roll anything back.
 /// </summary>
-public sealed class FlightPurger(FlightRepository flights, ILogger<FlightPurger> logger) : BackgroundService
+public sealed class FlightPurger(FlightRepository flights, DatabaseConnection connection, ILogger<FlightPurger> logger) : BackgroundService
 {
     public const int BatchSize = 500_000;
     private static readonly TimeSpan Fallback = TimeSpan.FromSeconds(30);
@@ -23,6 +23,15 @@ public sealed class FlightPurger(FlightRepository flights, ILogger<FlightPurger>
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        try
+        {
+            await connection.WhenConfiguredAsync(stoppingToken); // set up from the app, possibly after start-up
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
         // Also finishes deletions a previous run of the server did not complete.
         while (!stoppingToken.IsCancellationRequested)
         {

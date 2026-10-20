@@ -23,10 +23,14 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
 
     public string UploadDirectory { get; } = Path.Combine(Path.GetTempPath(), "pmda-test-uploads", Guid.NewGuid().ToString("N"));
 
+    /// <summary>Database settings file for this host: never the machine's real %ProgramData% file.</summary>
+    public string SettingsPath { get; } = Path.Combine(Path.GetTempPath(), "pmda-test-settings", Guid.NewGuid().ToString("N"), "database.json");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Pmda", db.ConnectionString);
+        builder.UseSetting("Database:SettingsPath", SettingsPath);
         builder.UseSetting("Database:EnsureCreatedOnStart", "false");
         builder.UseSetting("Imports:TempDirectory", UploadDirectory);
         foreach (var (key, value) in Settings)
@@ -110,5 +114,7 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
         base.Dispose(disposing);
         if (disposing && Directory.Exists(UploadDirectory))
             Directory.Delete(UploadDirectory, recursive: true);
+        if (disposing && Path.GetDirectoryName(SettingsPath) is { } settings && Directory.Exists(settings))
+            Directory.Delete(settings, recursive: true);
     }
 }

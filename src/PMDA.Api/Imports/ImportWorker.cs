@@ -8,11 +8,21 @@ public sealed class ImportWorker(
     ImportQueue queue,
     ImportRunner runner,
     FlightRepository flights,
+    DatabaseConnection connection,
     IOptions<ImportsOptions> options,
     ILogger<ImportWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        try
+        {
+            await connection.WhenConfiguredAsync(stoppingToken); // set up from the app, possibly after start-up
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
         // Jobs live in memory: anything still Importing was cut off by the previous shutdown.
         var interrupted = await flights.FailInterruptedImportsAsync(stoppingToken);
         if (interrupted > 0)
