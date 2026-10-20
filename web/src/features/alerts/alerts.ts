@@ -1,4 +1,5 @@
 import type { Alert, AlertKind } from '../../api/types'
+import { MAX_TICK_MS } from '../../machines/playbackMachine'
 
 export type AlertSeverity = 'critical' | 'warning' | 'advisory'
 
@@ -83,3 +84,32 @@ export const ALERT_CODES: readonly AlertKind[] = [
 ]
 
 export const alertKindOf = (code: number | null | undefined): AlertKind => (code !== null && code !== undefined && ALERT_CODES[code]) || 'Unknown'
+
+/**
+ * Follows the playhead and says which alert to sound at each step, as the crew heard them: tones and voice
+ * at 1×, only critical tones at 10×, nothing faster. Seeks are silent, but playback that starts (or resumes
+ * after a seek or pause) exactly on an alert calls it, so clicking an alert and playing from it sounds it.
+ */
+export class AlertTracker {
+  private last: number
+  /** True when the next playback step starts afresh: its window includes the starting instant. */
+  private fresh = true
+
+  constructor(positionMs: number) {
+    this.last = positionMs
+  }
+
+  step(positionMs: number, playing: boolean, speed: number, alerts: readonly Alert[]): Alert | undefined {
+    const from = this.last
+    this.last = positionMs
+    const seek = positionMs < from || positionMs - from > MAX_TICK_MS * speed
+    if (!playing || speed > 10 || seek) {
+      this.fresh = true
+      return undefined
+    }
+    // Offsets are whole milliseconds: half a millisecond earlier includes an alert exactly at the start.
+    const crossed = alertsCrossed(alerts, this.fresh ? from - 0.5 : from, positionMs)
+    this.fresh = false
+    return loudest(speed === 1 ? crossed : crossed.filter((a) => ALERTS[a.kind].severity === 'critical'))
+  }
+}
