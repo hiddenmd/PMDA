@@ -50,8 +50,8 @@ without a restart.
   connection exists.
 - `ImportWorker` and `FlightPurger` wait for `WhenConfiguredAsync` before their first database call. That covers
   recovering interrupted imports and purging deleted flights.
-- **Middleware:** while no connection is configured, every `/api/*` request except `/api/database*` and
-  `/api/health` answers **503** ProblemDetails: title `Database not configured`.
+- **Middleware:** while no connection is configured, every `/api/*` request except `/api/database*` answers
+  **503** ProblemDetails: title `Database not configured`.
 - **Session validation:** a database error, or no database, makes the request anonymous for that call
   (`RejectPrincipal`, no sign-out), so `/api/database` keeps working while SQL is down.
 
