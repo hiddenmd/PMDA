@@ -20,6 +20,7 @@ import {
   IconClock,
   IconCloudUpload,
   IconCopy,
+  IconDatabase,
   IconCrosshair,
   IconDeviceFloppy,
   IconDots,
@@ -79,6 +80,7 @@ export const CircleDashed = icon(IconCircleDashed)
 export const Clock = icon(IconClock)
 export const Copy = icon(IconCopy)
 export const Crosshair = icon(IconCrosshair)
+export const Database = icon(IconDatabase)
 export const ExternalLink = icon(IconExternalLink)
 export const Eye = icon(IconEye)
 export const EyeOff = icon(IconEyeOff)

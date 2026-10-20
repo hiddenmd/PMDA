@@ -126,6 +126,34 @@
   width: 100%;
   padding-left: calc(var(--space-md) * 3.5);
 }
+/* A checkbox or radio with its label on one line. */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+/* A labelled group of radios, laid out like a .field. */
+.choice-group {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.choice-group > legend {
+  margin-bottom: var(--space-xs);
+  padding: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-muted-foreground);
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
 .checkbox {
   width: calc(14px * var(--ui-scale));
   height: calc(14px * var(--ui-scale));
