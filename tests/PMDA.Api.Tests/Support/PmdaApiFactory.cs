@@ -26,11 +26,16 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
     /// <summary>Database settings file for this host: never the machine's real %ProgramData% file.</summary>
     public string SettingsPath { get; } = Path.Combine(Path.GetTempPath(), "pmda-test-settings", Guid.NewGuid().ToString("N"), "database.json");
 
+    /// <summary>This host's own user accounts file (in the same temporary folder).</summary>
+    public string UsersPath => Path.Combine(Path.GetDirectoryName(SettingsPath)!, "users.json");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Pmda", db.ConnectionString);
         builder.UseSetting("Database:SettingsPath", SettingsPath);
+        builder.UseSetting("Auth:UsersPath", UsersPath);
+        builder.UseSetting("Auth:MigrateUsersFromSql", "false");
         builder.UseSetting("Database:EnsureCreatedOnStart", "false");
         builder.UseSetting("Imports:TempDirectory", UploadDirectory);
         foreach (var (key, value) in Settings)
@@ -51,7 +56,7 @@ public sealed class PmdaApiFactory(SqlDatabase db, Dictionary<string, string?>? 
     /// <summary>Makes sure the standard test users exist with the known password.</summary>
     public async Task EnsureUsersAsync()
     {
-        var users = Service<UserRepository>();
+        var users = Service<IUserStore>();
         var auth = Service<AuthService>();
         foreach (var (name, role) in new[] { (AdminUser, UserRole.Admin), (AnalystUser, UserRole.Analyst) })
         {

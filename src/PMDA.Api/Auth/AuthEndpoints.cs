@@ -23,7 +23,8 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
         auth.MapPost("/login", Login).WithName("Login").AllowAnonymous()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         auth.MapPost("/logout", (Delegate)Logout).WithName("Logout").AllowAnonymous();
         auth.MapGet("/me", Me).WithName("GetCurrentUser").ProducesProblem(StatusCodes.Status401Unauthorized);
         auth.MapPost("/password", ChangePassword).WithName("ChangePassword")
@@ -31,18 +32,19 @@ public static class AuthEndpoints
         return app;
     }
 
-    private static async Task<Ok<AuthStateDto>> State(HttpContext http, UserRepository users, IOptions<AuthOptions> options, CancellationToken ct)
+    private static async Task<Ok<AuthStateDto>> State(HttpContext http, IUserStore users, IOptions<AuthOptions> options, CancellationToken ct)
     {
-        var required = await users.CountAsync(ct) == 0;
+        // Accounts not yet copied from SQL do exist: never offer first-run setup over them.
+        var required = !await MigrationPendingAsync(users, ct) && await users.CountAsync(ct) == 0;
         return TypedResults.Ok(new AuthStateDto(required, required && SetupAllowedFrom(http, options.Value)));
     }
 
     private static async Task<Results<Ok<CurrentUserDto>, ValidationProblem, ProblemHttpResult>> Setup(
-        SetupRequest request, HttpContext http, UserRepository users, AuthService auth, IOptions<AuthOptions> options, CancellationToken ct)
+        SetupRequest request, HttpContext http, IUserStore users, AuthService auth, IOptions<AuthOptions> options, CancellationToken ct)
     {
         if (!SetupAllowedFrom(http, options.Value))
             return TypedResults.Problem("Create the first administrator from the server machine itself.", statusCode: StatusCodes.Status403Forbidden);
-        if (await users.CountAsync(ct) > 0)
+        if (await MigrationPendingAsync(users, ct) || await users.CountAsync(ct) > 0)
             return TypedResults.Problem("PMDA is already set up. Sign in instead.", statusCode: StatusCodes.Status409Conflict);
         if (Validate(request.UserName, request.Password, auth) is { } problem)
             return problem;
@@ -54,8 +56,13 @@ public static class AuthEndpoints
         return TypedResults.Ok(Current(admin));
     }
 
-    private static async Task<Results<Ok<CurrentUserDto>, ProblemHttpResult>> Login(LoginRequest request, HttpContext http, AuthService auth, CancellationToken ct)
+    private static async Task<Results<Ok<CurrentUserDto>, ProblemHttpResult>> Login(
+        LoginRequest request, HttpContext http, AuthService auth, IUserStore users, CancellationToken ct)
     {
+        if (await MigrationPendingAsync(users, ct))
+            return TypedResults.Problem(
+                $"User accounts are still in SQL Server, which can't be reached right now: {(users as FileUserStore)?.MigrationError}",
+                title: "Accounts not available yet", statusCode: StatusCodes.Status503ServiceUnavailable);
         var result = await auth.LoginAsync(request.UserName ?? "", request.Password ?? "", ct);
         return result.Outcome switch
         {
@@ -84,7 +91,7 @@ public static class AuthEndpoints
         Enum.Parse<UserRole>(user.FindFirstValue(ClaimTypes.Role)!)));
 
     private static async Task<Results<NoContent, ValidationProblem, UnauthorizedHttpResult>> ChangePassword(
-        ChangePasswordRequest request, ClaimsPrincipal principal, HttpContext http, UserRepository users, AuthService auth, CancellationToken ct)
+        ChangePasswordRequest request, ClaimsPrincipal principal, HttpContext http, IUserStore users, AuthService auth, CancellationToken ct)
     {
         var user = await users.GetAsync(Guid.Parse(principal.FindFirstValue(ClaimTypes.NameIdentifier)!), ct);
         if (user is null)
@@ -115,6 +122,15 @@ public static class AuthEndpoints
             new AuthenticationProperties { IsPersistent = false });
 
     private static CurrentUserDto Current(UserRecord u) => new(u.UserId, u.UserName, u.DisplayName, u.Role);
+
+    /// <summary>Tries the one-time move of the accounts from SQL; true while it still can't be done.</summary>
+    private static async Task<bool> MigrationPendingAsync(IUserStore users, CancellationToken ct)
+    {
+        if (users is not FileUserStore { MigrationPending: true } file)
+            return false;
+        await file.EnsureMigratedAsync(ct);
+        return file.MigrationPending;
+    }
 
     private static bool SetupAllowedFrom(HttpContext http, AuthOptions options) =>
         options.AllowRemoteSetup || (http.Connection.RemoteIpAddress is { } ip && IPAddress.IsLoopback(ip));

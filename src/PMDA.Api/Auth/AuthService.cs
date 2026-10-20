@@ -19,6 +19,12 @@ public sealed class AuthOptions
     /// claim the administrator account first. Only automated test hosts turn this on.
     /// </summary>
     public bool AllowRemoteSetup { get; set; }
+
+    /// <summary>Where the user accounts are kept. Default: %ProgramData%\PMDA\users.json.</summary>
+    public string? UsersPath { get; set; }
+
+    /// <summary>Copy the accounts from SQL (dbo.AppUser) on first start, when there is no users file yet.</summary>
+    public bool MigrateUsersFromSql { get; set; } = true;
 }
 
 public static class PmdaClaims
@@ -37,7 +43,7 @@ public enum LoginOutcome { Success, Invalid, LockedOut }
 public sealed record LoginResult(LoginOutcome Outcome, UserRecord? User = null);
 
 /// <summary>Credential checks, lockout and password policy.</summary>
-public sealed class AuthService(UserRepository users, IOptions<AuthOptions> options, TimeProvider time)
+public sealed class AuthService(IUserStore users, IOptions<AuthOptions> options, TimeProvider time)
 {
     private readonly PasswordHasher<UserRecord> _hasher = new();
     private AuthOptions Options => options.Value;

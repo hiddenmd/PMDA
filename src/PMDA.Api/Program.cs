@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using System.IO.Compression;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -19,7 +20,13 @@ builder.Services.AddSingleton(sp => new FlightRepository(sp.GetRequiredService<I
 builder.Services.AddSingleton(sp => new PlaybackRepository(sp.GetRequiredService<IConnectionSource>()));
 builder.Services.AddSingleton(sp => new EventRepository(sp.GetRequiredService<IConnectionSource>()));
 builder.Services.AddSingleton(sp => new SeriesRepository(sp.GetRequiredService<IConnectionSource>()));
-builder.Services.AddSingleton(sp => new UserRepository(sp.GetRequiredService<IConnectionSource>()));
+// User accounts live in a local file; on first start they are copied once from the legacy SQL database.
+builder.Services.AddSingleton<IUserStore>(sp =>
+{
+    var auth = sp.GetRequiredService<IOptions<AuthOptions>>();
+    var legacy = auth.Value.MigrateUsersFromSql ? LegacyUsers.Source(sp) : null;
+    return new FileUserStore(auth, sp.GetRequiredService<ILogger<FileUserStore>>(), legacy, sp.GetRequiredService<TimeProvider>());
+});
 builder.Services.AddSingleton<DatabaseSettingsStore>();
 builder.Services.AddSingleton<DatabaseSetupService>();
 var database = builder.Configuration.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>() ?? new DatabaseOptions();
@@ -53,6 +60,9 @@ var app = builder.Build();
 
 // Load and validate RWR symbology now: a bad profile file should stop start-up, not a debrief.
 app.Services.GetRequiredService<SymbologyCatalog>();
+
+if (app.Services.GetRequiredService<IUserStore>() is FileUserStore userFile)
+    await userFile.EnsureMigratedAsync(CancellationToken.None);
 
 await app.Services.GetRequiredService<DatabaseSetupService>()
     .InitializeAsync(builder.Configuration.GetConnectionString(DatabaseOptions.ConnectionStringName), database.EnsureCreatedOnStart);

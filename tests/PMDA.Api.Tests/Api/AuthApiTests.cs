@@ -130,7 +130,6 @@ public sealed class AuthApiTests(SqlDatabase db) : IAsyncLifetime
     [Fact]
     public async Task The_last_admin_cannot_be_demoted_and_nobody_deactivates_themselves()
     {
-        await db.ScalarAsync($"DELETE dbo.AppUser WHERE UserName NOT IN ('{AdminUser}', '{AnalystUser}'); SELECT 0");
         var admin = await _api.CreateSignedInClientAsync();
         var me = (await admin.GetFromJsonAsync<CurrentUserDto>("/api/auth/me", Json))!;
 
@@ -170,10 +169,10 @@ public sealed class AuthApiTests(SqlDatabase db) : IAsyncLifetime
     [Fact]
     public async Task First_run_setup_only_without_users_and_only_where_allowed()
     {
-        await db.ScalarAsync("DELETE dbo.AppUser; SELECT 0");
-
-        var remote = await _api.CreateClient().GetFromJsonAsync<AuthStateDto>("/api/auth/state", Json);
-        var refused = await _api.CreateClient().PostAsJsonAsync("/api/auth/setup", new SetupRequest("first.admin", "First", "a-good-password"), Json);
+        // A host with an empty users file: nobody has been created yet.
+        await using var fresh = new PmdaApiFactory(db);
+        var remote = await fresh.CreateClient().GetFromJsonAsync<AuthStateDto>("/api/auth/state", Json);
+        var refused = await fresh.CreateClient().PostAsJsonAsync("/api/auth/setup", new SetupRequest("first.admin", "First", "a-good-password"), Json);
         Assert.True(remote!.SetupRequired);
         Assert.False(remote.SetupAllowed); // the test server is not a loopback connection
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);

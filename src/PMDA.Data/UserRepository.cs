@@ -22,8 +22,11 @@ public sealed record UserRecord(
     DateTime CreatedUtc,
     DateTime? LastLoginUtc);
 
-/// <summary>PMDA's own user accounts. Hashing and policy live in the API; this is storage only.</summary>
-public sealed class UserRepository(IConnectionSource connection)
+/// <summary>
+/// User accounts in SQL (dbo.AppUser). Accounts now live in a local file; this is kept as the source PMDA migrates
+/// them from once.
+/// </summary>
+public sealed class UserRepository(IConnectionSource connection) : IUserStore
 {
     public UserRepository(string connectionString) : this(new FixedConnection(connectionString)) { }
 

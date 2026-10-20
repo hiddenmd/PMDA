@@ -22,14 +22,14 @@ public static class UserEndpoints
         return app;
     }
 
-    private static async Task<Ok<UserDto[]>> List(UserRepository users, TimeProvider time, CancellationToken ct)
+    private static async Task<Ok<UserDto[]>> List(IUserStore users, TimeProvider time, CancellationToken ct)
     {
         var now = time.GetUtcNow().UtcDateTime;
         return TypedResults.Ok((await users.ListAsync(ct)).Select(u => UserDto.From(u, now)).ToArray());
     }
 
     private static async Task<Results<Created<UserDto>, ValidationProblem, ProblemHttpResult>> Create(
-        CreateUserRequest request, UserRepository users, AuthService auth, TimeProvider time, CancellationToken ct)
+        CreateUserRequest request, IUserStore users, AuthService auth, TimeProvider time, CancellationToken ct)
     {
         if (AuthEndpoints.Validate(request.UserName, request.Password, auth) is { } problem)
             return problem;
@@ -40,7 +40,7 @@ public static class UserEndpoints
     }
 
     private static async Task<Results<Ok<UserDto>, NotFound, ValidationProblem, ProblemHttpResult>> Update(
-        Guid id, UpdateUserRequest request, ClaimsPrincipal me, UserRepository users, TimeProvider time, CancellationToken ct)
+        Guid id, UpdateUserRequest request, ClaimsPrincipal me, IUserStore users, TimeProvider time, CancellationToken ct)
     {
         var user = await users.GetAsync(id, ct);
         if (user is null)
@@ -60,7 +60,7 @@ public static class UserEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem>> ResetPassword(
-        Guid id, ResetPasswordRequest request, UserRepository users, AuthService auth, CancellationToken ct)
+        Guid id, ResetPasswordRequest request, IUserStore users, AuthService auth, CancellationToken ct)
     {
         var user = await users.GetAsync(id, ct);
         if (user is null)

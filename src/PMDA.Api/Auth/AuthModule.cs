@@ -53,7 +53,7 @@ public static class AuthModule
     /// </summary>
     private static async Task ValidateSessionAsync(CookieValidatePrincipalContext ctx)
     {
-        var users = ctx.HttpContext.RequestServices.GetRequiredService<UserRepository>();
+        var users = ctx.HttpContext.RequestServices.GetRequiredService<IUserStore>();
         var id = ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
         var stamp = ctx.Principal?.FindFirstValue(PmdaClaims.SecurityStamp);
         UserRecord? user;
