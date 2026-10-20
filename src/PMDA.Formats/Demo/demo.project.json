@@ -1,0 +1,74 @@
+{
+  "id": "DEMO-H",
+  "name": "Demo project (.h)",
+  "settings": {
+    "byteOrder": "LittleEndian",
+    "bitOrder": "LsbFirst",
+    "timeUnitSeconds": 0.001,
+    "naming": { "tables": "Struct", "columns": "Field", "arrayIndexBase": 0 }
+  },
+  "recipe": {
+    "bind": {
+      "1": "threat_struct",
+      "3": "threat_struct",
+      "2": "threat_ext_struct",
+      "5": "threat_drop_struct"
+    },
+    "derived": {
+      "threat_struct": ["status", "drop_code", "pri_count", "frq_count", "pris", "frqs", "own_hdg", "own_lat", "own_lon", "own_alt"]
+    },
+    "tracks": [
+      {
+        "struct": "threat_struct",
+        "key": "threat_id",
+        "new": [1],
+        "update": [3],
+        "extension": [2],
+        "delete": [5],
+        "status": { "field": "status", "new": 0, "extension": 1, "update": 2, "delete": 3 },
+        "deleteCodeFrom": "reason",
+        "deleteCodeTo": "drop_code",
+        "join": {
+          "kind": "list_kind",
+          "count": "word_count",
+          "values": "words",
+          "countUnit": "words",
+          "lists": {
+            "0": { "target": "pris", "countField": "pri_count" },
+            "1": { "target": "frqs", "countField": "frq_count" }
+          }
+        },
+        "attachNav": { "own_lat": "lat", "own_lon": "lon", "own_alt": "alt", "own_hdg": "heading" }
+      }
+    ],
+    "nav": {
+      "message": "13",
+      "fields": { "lat": "lat", "lon": "lon", "alt": "alt", "heading": "hdg", "pitch": "pitch", "roll": "roll" }
+    },
+    "flightInfo": { "message": "12", "tail": "tail_num", "year": "year", "month": "month", "day": "day", "yearBase": 2000 }
+  },
+  "events": [
+    {
+      "kind": "Emitter",
+      "message": "threat_struct",
+      "when": "status!=3",
+      "fields": { "EmitterId": "threat_id", "FrequencyMHz": "frq", "PriUs": "pri", "PulseWidthUs": "pw", "BearingDeg": "aoa", "AmplitudeDb": "power" }
+    },
+    {
+      "kind": "Warning",
+      "message": "threat_struct",
+      "when": "launch==1 && status!=3",
+      "fields": { "SubType": "3", "EmitterId": "threat_id", "BearingDeg": "aoa" }
+    },
+    {
+      "kind": "Navigation",
+      "message": "13",
+      "fields": { "Lat": "lat", "Lon": "lon", "AltM": "alt*0.3048" }
+    },
+    {
+      "kind": "Countermeasure",
+      "message": "20",
+      "fields": { "SubType": "kind", "Count": "count" }
+    }
+  ]
+}

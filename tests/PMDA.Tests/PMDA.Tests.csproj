@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\PMDA.Parsers\PMDA.Parsers.csproj" />
     <ProjectReference Include="..\..\src\PMDA.Import\PMDA.Import.csproj" />
     <ProjectReference Include="..\..\src\PMDA.Data\PMDA.Data.csproj" />
+    <ProjectReference Include="..\..\src\PMDA.Formats\PMDA.Formats.csproj" />
   </ItemGroup>
 
 </Project>
