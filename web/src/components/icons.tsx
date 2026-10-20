@@ -27,6 +27,7 @@ import {
   IconExternalLink,
   IconEye,
   IconEyeOff,
+  IconFileCode,
   IconFlame,
   IconFolderOpen,
   IconInfoCircle,
@@ -84,6 +85,7 @@ export const Database = icon(IconDatabase)
 export const ExternalLink = icon(IconExternalLink)
 export const Eye = icon(IconEye)
 export const EyeOff = icon(IconEyeOff)
+export const FileCode = icon(IconFileCode)
 export const Flame = icon(IconFlame)
 export const FolderOpen = icon(IconFolderOpen)
 export const Info = icon(IconInfoCircle)

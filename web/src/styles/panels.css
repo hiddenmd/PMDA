@@ -1122,3 +1122,112 @@
 .graph-area .u-cursor-y {
   border-color: var(--color-primary) !important;
 }
+
+/* ---------- Recording formats (admin) ---------- */
+
+.table--compact th,
+.table--compact td {
+  padding-block: calc(3px * var(--ui-scale));
+}
+.table tbody tr.is-selected {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+.rotate-90 {
+  transform: rotate(90deg);
+}
+.format-detail {
+  display: grid;
+  gap: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+.format-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.format-detail h4,
+.format-detail h5 {
+  margin: 0;
+}
+.format-section {
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.format-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+.format-diagnostics {
+  display: grid;
+  gap: var(--space-xs, 2px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  max-height: calc(240px * var(--ui-scale));
+  overflow: auto;
+}
+.format-diagnostic {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+.format-diagnostic > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.format-diagnostic--error > svg {
+  color: var(--color-destructive);
+}
+.format-diagnostic--warning > svg {
+  color: var(--color-accent);
+}
+.format-diff ul {
+  margin: var(--space-sm) 0 0;
+  padding-left: var(--space-lg);
+}
+.format-diff {
+  display: block;
+}
+/* Struct and project names are identifiers: keep their case in the HUD's uppercase buttons. */
+.format-expand,
+.format-name {
+  gap: var(--space-xs, 2px);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.format-columns {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0 var(--space-sm) var(--space-lg);
+}
+.format-json {
+  min-height: calc(320px * var(--ui-scale));
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  resize: vertical;
+  white-space: pre;
+}
+.format-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-xs, 2px) var(--space-lg);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.format-facts dt {
+  color: var(--color-muted-foreground);
+}
+.format-facts dd {
+  margin: 0;
+}
+.format-dry-run {
+  display: grid;
+  gap: var(--space-md);
+}

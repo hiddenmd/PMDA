@@ -15,6 +15,7 @@ import { MapPanel } from './panels/MapPanel'
 import { ScopePanel } from './panels/ScopePanel'
 import { UsersPanel } from './panels/UsersPanel'
 import { DatabasesPanel } from './panels/DatabasesPanel'
+import { FormatsPanel } from './panels/FormatsPanel'
 
 const pmdaTheme: DockviewTheme = { name: 'pmda', className: 'dockview-theme-pmda', gap: 0, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
 
@@ -31,6 +32,7 @@ const components: Record<PanelKind, FunctionComponent<IDockviewPanelProps>> = {
   graph: GraphPanel as FunctionComponent<IDockviewPanelProps>,
   users: UsersPanel,
   databases: DatabasesPanel,
+  formats: FormatsPanel,
 }
 
 interface DockProps {

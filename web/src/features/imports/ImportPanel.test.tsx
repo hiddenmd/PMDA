@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fromCallback, fromPromise } from 'xstate'
 import type { DatabaseChoice } from '../../api/databases'
+import type { FormatSummary } from '../../api/formats'
 import type { ImportJob } from '../../api/types'
 import { useBatchView } from '../../hooks/useImportBatch'
 import { importBatchMachine } from '../../machines/importBatchMachine'
@@ -13,9 +14,10 @@ import { makeFile, makeJob } from '../../test/fixtures'
 import { ImportPanelView } from './ImportPanel'
 
 /** The real batch and file machines, with uploads and the server faked. */
-function renderPanel(targets: DatabaseChoice[] = [], defaultTarget: string | null = null) {
+function renderPanel(targets: DatabaseChoice[] = [], defaultTarget: string | null = null, formats: FormatSummary[] = []) {
   const uploads = new Map<string, (e: ImportEvent) => void>()
   const targetOf = new Map<string, string | null>()
+  const formatOf = new Map<string, string | null>()
   const onOpenFlight = vi.fn()
   let send: (e: { type: 'JOB_UPDATED'; job: ImportJob }) => void = () => undefined
 
@@ -23,9 +25,10 @@ function renderPanel(targets: DatabaseChoice[] = [], defaultTarget: string | nul
     actors: {
       importFile: importMachine.provide({
         actors: {
-          upload: fromCallback<ImportEvent, { file: File; databaseId: string | null }>(({ input, sendBack }) => {
+          upload: fromCallback<ImportEvent, { file: File; databaseId: string | null; format?: string | null }>(({ input, sendBack }) => {
             uploads.set(input.file.name, sendBack)
             targetOf.set(input.file.name, input.databaseId)
+            formatOf.set(input.file.name, input.format ?? null)
             return () => uploads.delete(input.file.name)
           }),
           watchJob: fromCallback(() => () => undefined),
@@ -40,17 +43,39 @@ function renderPanel(targets: DatabaseChoice[] = [], defaultTarget: string | nul
     useEffect(() => {
       send = actor.send
     }, [actor])
-    return <ImportPanelView batch={useBatchView(actor)} onOpenFlight={onOpenFlight} targets={targets} defaultTarget={defaultTarget} />
+    return <ImportPanelView batch={useBatchView(actor)} onOpenFlight={onOpenFlight} targets={targets} defaultTarget={defaultTarget} formats={formats} />
   }
   render(<Harness />)
 
   const uploaded = (name: string, job: ImportJob) => act(() => uploads.get(name)!({ type: 'UPLOAD_DONE', job }))
   const update = (job: ImportJob) => act(() => send({ type: 'JOB_UPDATED', job }))
   const row = (name: string) => screen.getByText(name).closest('li')!
-  return { uploads, targetOf, onOpenFlight, uploaded, update, row }
+  return { uploads, targetOf, formatOf, onOpenFlight, uploaded, update, row }
 }
 
 describe('ImportPanelView', () => {
+  it('offers the header-defined formats and sends the chosen one with the upload', async () => {
+    const formats: FormatSummary[] = [
+      { id: 'PROJ-A', name: 'Project A', version: 3, canImport: true, messages: 12, errors: 0, warnings: 1 },
+      { id: 'PROJ-B', name: 'Project B', version: null, canImport: false, messages: 0, errors: 0, warnings: 0 },
+    ]
+    const h = renderPanel([], null, formats)
+    const picker = screen.getByLabelText('Format')
+    expect(within(picker).getByRole('option', { name: 'Project B (not ready)' })).toBeDisabled()
+
+    await userEvent.upload(screen.getByLabelText('Flight recordings'), [makeFile('auto.raw')])
+    await userEvent.selectOptions(picker, 'PROJ-A')
+    await userEvent.upload(screen.getByLabelText('Flight recordings'), [makeFile('a.raw')])
+
+    expect(h.formatOf.get('auto.raw')).toBeNull()
+    expect(h.formatOf.get('a.raw')).toBe('PROJ-A')
+  })
+
+  it('shows no format picker when there are no header-defined formats', () => {
+    renderPanel()
+    expect(screen.queryByLabelText('Format')).not.toBeInTheDocument()
+  })
+
   it('takes several files at once, uploading two while the rest wait', async () => {
     const h = renderPanel()
 

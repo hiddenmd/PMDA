@@ -47,8 +47,9 @@ internal sealed class MissionSimulator(Scenario scenario)
         var corrupt = 0;
         using (var file = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
         {
-            var w = new SampleFormatWriter(file);
+            IRecordingWriter w = scenario.Format == "demo-h" ? new DemoHeaderRecordingWriter(file) : new SampleRecordingWriter(file);
             w.WriteHeader(start, scenario.Tail, scenario.Mission);
+            var last = TimeSpan.Zero;
 
             var (lat, lon) = route?[0] ?? (sortie!.Lat, sortie.Lon);
             var heading = route is null ? sortie!.HeadingDeg : Geo.BearingDeg(lat, lon, route[1].Lat, route[1].Lon);
@@ -63,6 +64,7 @@ internal sealed class MissionSimulator(Scenario scenario)
             {
                 var t = tick * TickSeconds;
                 var offset = TimeSpan.FromSeconds(t);
+                last = offset;
 
                 if (sortie is not null)
                 {
@@ -86,12 +88,12 @@ internal sealed class MissionSimulator(Scenario scenario)
                     alt += (Math.Sin(t / 90) * 600 + 3_500 - alt) * 0.01 + Noise(2);
                 }
 
-                w.WriteNavigation(offset, lat, lon, (float)alt);
+                w.WriteNavigation(offset, lat, lon, (float)alt, heading);
                 records++;
 
                 if (tick % corruptEvery == corruptEvery / 2 && corrupt < scenario.CorruptRecords)
                 {
-                    WriteCorruption(w, offset, corrupt);
+                    w.WriteCorruption(offset, corrupt);
                     corrupt++;
                 }
 
@@ -164,11 +166,9 @@ internal sealed class MissionSimulator(Scenario scenario)
                 }
             }
 
+            w.Finish(last);
             if (scenario.TruncateEnd)
-            {
-                // A record header promising more bytes than the recorder managed to write.
-                w.WriteGarbage([0x5A, 0xA5, 0x01, 0x00, 1, 2, 3, 4, 5, 6, 7, 8, 24, 0, 9, 9, 9]);
-            }
+                w.WriteTruncatedEnd(); // a record header promising more bytes than the recorder managed to write
         }
 
         return new Result(records, corrupt, new FileInfo(path).Length);
@@ -176,7 +176,7 @@ internal sealed class MissionSimulator(Scenario scenario)
 
     /// <summary>Releases up to <paramref name="count"/> from the store; calls LOW at a quarter left and OUT when empty.</summary>
     /// <returns>Records written.</returns>
-    private static int Dispense(SampleFormatWriter w, TimeSpan offset, Store store, byte count)
+    private static int Dispense(IRecordingWriter w, TimeSpan offset, Store store, byte count)
     {
         var released = (byte)Math.Min(count, store.Left);
         if (released == 0)
@@ -201,15 +201,6 @@ internal sealed class MissionSimulator(Scenario scenario)
         public int Left { get; set; } = load;
         public AlertKind LowAlert { get; } = lowAlert;
         public AlertKind OutAlert { get; } = outAlert;
-    }
-
-    private void WriteCorruption(SampleFormatWriter w, TimeSpan offset, int index)
-    {
-        // Alternate the two kinds of damage the parser must survive.
-        if (index % 2 == 0)
-            w.WriteRecord(SampleFormat.EmitterMessage, offset, new byte[24], corruptChecksum: true);
-        else
-            w.WriteGarbage([0xDE, 0xAD, 0xBE, 0xEF, 0x5A, 0x00, 0x13, 0x37]);
     }
 
     /// <param name="site">A fixed site (sorties); otherwise a random position and family in the patrol area.</param>

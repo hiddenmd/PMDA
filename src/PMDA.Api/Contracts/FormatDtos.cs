@@ -14,12 +14,14 @@ public sealed record FormatColumnDto(string Field, string Name, string Type, str
 public sealed record FormatChildDto(string Field, string Table, string CountField, int MaxCount, IReadOnlyList<FormatColumnDto> Columns);
 
 /// <param name="Events">Recorded event ids decoded with this struct.</param>
-/// <param name="Stored">Whether rows of this message are written to a table (tracked events are not).</param>
+/// <param name="Stored">Whether rows of this message are written to a table.</param>
+/// <param name="Tracked">Its events feed a track, which writes the merged rows to the track's table.</param>
 public sealed record FormatMessageDto(
     string Key,
     string Table,
     IReadOnlyList<int> Events,
     bool Stored,
+    bool Tracked,
     string? Title,
     string? Group,
     int? Level,
@@ -90,6 +92,7 @@ public static class FormatDtoMapping
                 [new FormatDiagnosticDto(0, nameof(Severity.Info), "No header yet: upload the vendor .h file.")], [], 0, RecipeEngine.EventProperties);
 
         var stored = format.StoredTables.Select(p => p.Key).ToHashSet();
+        var tracked = format.Decoders.Where(d => !format.TableByEvent.ContainsKey(d.Key)).Select(d => d.Value.Plan.Key).ToHashSet();
         var eventsByKey = format.Decoders.GroupBy(d => d.Value.Plan.Key).ToDictionary(g => g.Key, g => g.Select(x => x.Key).Order().ToList());
         var messages = format.Tables.Values
             .OrderBy(p => eventsByKey.TryGetValue(p.Key, out var e) && e.Count > 0 ? e[0] : int.MaxValue)
@@ -98,6 +101,7 @@ public static class FormatDtoMapping
                 p.TableName,
                 eventsByKey.GetValueOrDefault(p.Key) ?? [],
                 stored.Contains(p.Key),
+                tracked.Contains(p.Key),
                 p.Decl.Tags.Value("Title"),
                 p.Decl.Tags.Value("Group"),
                 int.TryParse(p.Decl.Tags.Value("Level"), out var level) ? level : null,

@@ -41,8 +41,8 @@ export function useBatchView(actor: ImportBatchActor) {
   const summary = useSelector(actor, batchSummary, sameSummary)
   const actions = useMemo(
     () => ({
-      add: (files: File[], databaseId?: string | null) => {
-        if (files.length > 0) actor.send({ type: 'ADD_FILES', files, databaseId })
+      add: (files: File[], databaseId?: string | null, format?: string | null) => {
+        if (files.length > 0) actor.send({ type: 'ADD_FILES', files, databaseId, format })
       },
       cancel: (id: string) => actor.send({ type: 'CANCEL', id }),
       cancelAll: () => actor.send({ type: 'CANCEL_ALL' }),

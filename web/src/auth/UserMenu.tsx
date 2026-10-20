@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import type { DockviewApi } from 'dockview-react'
-import { Database, KeyRound, LogOut, Users } from '../components/icons'
+import { Database, FileCode, KeyRound, LogOut, Users } from '../components/icons'
 import { useState } from 'react'
 import { changePassword, errorMessage } from '../api/auth'
 import { Dialog } from '../components/Dialog'
@@ -53,6 +53,18 @@ export function UserMenu({ api }: { api: DockviewApi | null }) {
                 }}
               >
                 Manage databases
+              </MenuItem>
+            )}
+            {isAdmin && (
+              <MenuItem
+                icon={<FileCode size={14} aria-hidden />}
+                disabled={!api}
+                onSelect={() => {
+                  if (api) openPanel(api, 'formats')
+                  close()
+                }}
+              >
+                Recording formats
               </MenuItem>
             )}
             <MenuItem

@@ -13,7 +13,8 @@ internal sealed record Scenario(
     bool TruncateEnd = false,
     int EmitterRateHz = 20,
     SortiePlan? Sortie = null,
-    DateTime? StartUtc = null)
+    DateTime? StartUtc = null,
+    string Format = "sample")
 {
     public static readonly Scenario[] Standard =
     [

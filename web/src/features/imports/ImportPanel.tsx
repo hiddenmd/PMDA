@@ -2,7 +2,9 @@ import { useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle2, Clock, Copy, FolderOpen, Loader2, RotateCcw, UploadCloud, X, XCircle } from '../../components/icons'
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 import type { DatabaseChoice } from '../../api/databases'
+import type { FormatSummary } from '../../api/formats'
 import { useDatabaseChoices } from '../../hooks/useDatabases'
+import { useFormats } from '../../hooks/useFormats'
 import { useImportBatch, type ImportBatch } from '../../hooks/useImportBatch'
 import { formatBytes, formatCompact, formatNumber } from '../../lib/format'
 import { isFinished, type BatchItem, type BatchSummary, type FileImportRef, type FileStatus } from '../../machines/importBatchMachine'
@@ -16,12 +18,14 @@ interface ImportPanelProps {
 export function ImportPanel({ onOpenFlight }: ImportPanelProps) {
   const batch = useImportBatch()
   const choices = useDatabaseChoices()
+  const formats = useFormats()
   return (
     <ImportPanelView
       batch={batch}
       onOpenFlight={onOpenFlight}
       targets={choices.data?.databases.filter((d) => !d.readOnly)}
       defaultTarget={choices.data?.defaultImportId ?? null}
+      formats={formats.data}
     />
   )
 }
@@ -31,12 +35,19 @@ interface ImportPanelViewProps extends ImportPanelProps {
   /** Databases that take imports; the picker shows when there is a choice. */
   targets?: readonly DatabaseChoice[]
   defaultTarget?: string | null
+  /** Header-defined recording formats; the format picker shows when there are any. */
+  formats?: readonly FormatSummary[]
 }
 
+/** The built-in synthetic format's id (see PMDA.Parsers SampleFormat). */
+const SAMPLE_FORMAT = 'SAMPLE'
+
 /** Drop zone plus one row per file of the batch. */
-export function ImportPanelView({ batch, onOpenFlight, targets = [], defaultTarget = null }: ImportPanelViewProps) {
+export function ImportPanelView({ batch, onOpenFlight, targets = [], defaultTarget = null, formats = [] }: ImportPanelViewProps) {
   const { items, summary } = batch
   const [picked, setPicked] = useState<string | null>(null)
+  // '' lets the server recognize the recording.
+  const [format, setFormat] = useState('')
   // The admin may change the default while this panel is open: follow it until the user picks one.
   const target = picked !== null && targets.some((t) => t.id === picked) ? picked : (defaultTarget ?? targets[0]?.id ?? null)
   const children = useSelector(batch.actor, (s) => s.children as Record<string, FileImportRef | undefined>)
@@ -57,7 +68,21 @@ export function ImportPanelView({ batch, onOpenFlight, targets = [], defaultTarg
           </select>
         </label>
       )}
-      <FilePicker onFiles={(files) => batch.add(files, target)} compact={items.length > 0} />
+      {formats.length > 0 && (
+        <label className="field import-target">
+          <span>Format</span>
+          <select className="select select--compact" value={format} onChange={(e) => setFormat(e.target.value)}>
+            <option value="">Detect automatically</option>
+            {formats.map((f) => (
+              <option key={f.id} value={f.id} disabled={!f.canImport}>
+                {f.canImport ? f.name : `${f.name} (not ready)`}
+              </option>
+            ))}
+            <option value={SAMPLE_FORMAT}>PMDA sample (built-in)</option>
+          </select>
+        </label>
+      )}
+      <FilePicker onFiles={(files) => batch.add(files, target, format || null)} compact={items.length > 0} />
 
       {items.length > 0 && (
         <div className="import-batch">

@@ -3,10 +3,12 @@
 //   dotnet run --project tools/PMDA.SampleGen -c Release -- --all samples
 //   dotnet run --project tools/PMDA.SampleGen -c Release -- --scenario dense-threat samples/dense.bin
 //   dotnet run --project tools/PMDA.SampleGen -c Release -- --scenario training-sortie out.bin --seed 7 --tail TRN-031 --mission TRAINING-7 --start 2026-02-03T08:15Z
+//   dotnet run --project tools/PMDA.SampleGen -c Release -- --scenario desert-range out.raw --format demo-h
 //   dotnet run --project tools/PMDA.SampleGen -c Release -- --list
 //
 // --seed changes the emitters and noise (and, for area scenarios, the route); --tail, --mission and --start
-// change the header; together they make a different flight of the same kind.
+// change the header; together they make a different flight of the same kind. --format demo-h writes a raw recorder
+// dump in the invented demo header's format (src/PMDA.Formats/Demo) instead of the sample format.
 
 using System.Diagnostics;
 using System.Globalization;
@@ -41,7 +43,7 @@ if (args is ["--scenario", var name, var output, .. var options])
     return 0;
 }
 
-Console.Error.WriteLine("usage: PMDA.SampleGen --all <dir> | --scenario <name> <file> [--seed n] [--tail t] [--mission m] [--start utc] | --list");
+Console.Error.WriteLine("usage: PMDA.SampleGen --all <dir> | --scenario <name> <file> [--seed n] [--tail t] [--mission m] [--start utc] [--format sample|demo-h] | --list");
 return 1;
 
 static Scenario? WithOptions(Scenario scenario, string[] options)
@@ -53,6 +55,9 @@ static Scenario? WithOptions(Scenario scenario, string[] options)
         {
             case "--seed" when int.TryParse(value, CultureInfo.InvariantCulture, out var seed):
                 scenario = scenario with { Seed = seed };
+                break;
+            case "--format" when value is "sample" or "demo-h":
+                scenario = scenario with { Format = value };
                 break;
             case "--tail":
                 scenario = scenario with { Tail = value };

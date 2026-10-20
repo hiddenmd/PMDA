@@ -322,6 +322,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/formats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Header-defined recording formats. */
+        get: operations["ListFormats"];
+        put?: never;
+        /** Start a new project. */
+        post: operations["CreateFormat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/formats/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A format with its header report, messages and tables. */
+        get: operations["GetFormat"];
+        /** Save settings, recipe and event rules. */
+        put: operations["SaveFormat"];
+        post?: never;
+        /** Forget a project; tables already created stay in the databases. */
+        delete: operations["DeleteFormat"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/formats/{id}/header": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The text of one header version (default: the latest). */
+        get: operations["GetFormatHeader"];
+        /** Upload a vendor .h; it becomes the next version. The answer compares it with the previous one. */
+        put: operations["UploadFormatHeader"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/formats/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add the invented demo project (header and recipe). */
+        post: operations["CreateDemoFormat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/formats/{id}/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decode a recording with the current header and recipe without storing anything. */
+        post: operations["DryRunFormat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/flights": {
         parameters: {
             query?: never;
@@ -648,6 +737,10 @@ export interface components {
             setupRequired: boolean;
             setupAllowed: boolean;
         };
+        /** @enum {unknown} */
+        BitOrder: "LsbFirst" | "MsbFirst";
+        /** @enum {unknown} */
+        ByteOrder: "LittleEndian" | "BigEndian";
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
@@ -671,6 +764,10 @@ export interface components {
             kind: number;
             /** Format: int32 */
             count: number;
+        };
+        CreateFormatRequest: {
+            id: string;
+            name: string;
         };
         CreateUserRequest: {
             userName: string;
@@ -796,6 +893,45 @@ export interface components {
             /** Format: int32 */
             maxSymbols?: number;
         };
+        DryRunDto: {
+            /** Format: date-time */
+            flightDate: string;
+            dateFound: boolean;
+            tail: string;
+            /** Format: int64 */
+            records: number;
+            /** Format: date-time */
+            firstUtc: string | null;
+            /** Format: date-time */
+            lastUtc: string | null;
+            recordsByEvent: {
+                [key: string]: number;
+            };
+            unknownEvents: {
+                [key: string]: number;
+            };
+            shortByEvent: {
+                [key: string]: number;
+            };
+            rowsByTable: {
+                [key: string]: number;
+            };
+            /** Format: int64 */
+            tracksStarted: number;
+            /** Format: int64 */
+            updatesWithoutNew: number;
+            /** Format: int64 */
+            extensionsWithoutNew: number;
+            /** Format: int64 */
+            deletesWithoutNew: number;
+            /** Format: int64 */
+            unknownJoinKinds: number;
+            /** Format: int64 */
+            events: number;
+            diagnostics: components["schemas"]["ParseDiagnosticDto"][];
+            /** Format: int64 */
+            diagnosticCount: number;
+        };
         EmitterFixDto: {
             /** Format: int32 */
             emitterId: number;
@@ -856,6 +992,8 @@ export interface components {
             t: number[];
             v: number[];
         };
+        /** @enum {unknown} */
+        EventKind: "Emitter" | "Countermeasure" | "Navigation" | "Warning" | "System";
         EventPageDto: {
             type: components["schemas"]["EventType"];
             /** Format: int64 */
@@ -895,8 +1033,25 @@ export interface components {
             /** Format: int32 */
             count: number | null;
         };
+        EventRule: {
+            kind: components["schemas"]["EventKind"];
+            message: string;
+            when?: string | null;
+            fields?: {
+                [key: string]: string;
+            };
+        };
         /** @enum {unknown} */
         EventType: "Unknown" | "Emitter" | "Countermeasure" | "Navigation" | "Warning" | "System";
+        ExtensionJoin: {
+            kind?: string;
+            count?: string;
+            values?: string;
+            countUnit?: string;
+            lists?: {
+                [key: string]: components["schemas"]["JoinTarget"];
+            };
+        } | null;
         FlightDetailDto: {
             /** Format: uuid */
             id: string;
@@ -924,6 +1079,15 @@ export interface components {
             databaseName: string;
             databaseReadOnly: boolean;
         };
+        FlightInfoSource: {
+            message: string;
+            tail?: string | null;
+            year?: string | null;
+            month?: string | null;
+            day?: string | null;
+            /** Format: int32 */
+            yearBase?: number;
+        } | null;
         FlightOverviewDto: {
             /** Format: int64 */
             spanMs: number;
@@ -972,6 +1136,118 @@ export interface components {
             lon: number[];
             altM: number[];
         };
+        FormatChildDto: {
+            field: string;
+            table: string;
+            countField: string;
+            /** Format: int32 */
+            maxCount: number;
+            columns: unknown[];
+        };
+        FormatColumnDto: {
+            field: string;
+            name: string;
+            type: string;
+            title: string | null;
+            unit: string | null;
+            enum: string | null;
+        };
+        FormatDetailDto: {
+            project: components["schemas"]["FormatProject"];
+            /** Format: int32 */
+            version: number | null;
+            versions: components["schemas"]["FormatVersionDto"][];
+            canImport: boolean;
+            sqlSchema: string;
+            frame: components["schemas"]["FormatFrameDto"];
+            diagnostics: components["schemas"]["FormatDiagnosticDto"][];
+            messages: components["schemas"]["FormatMessageDto"][];
+            /** Format: int32 */
+            enums: number;
+            eventProperties: string[];
+        };
+        FormatDiagnosticDto: {
+            /** Format: int32 */
+            line: number;
+            severity: string;
+            message: string;
+        };
+        FormatDiff: {
+            addedMessages: string[];
+            removedMessages: string[];
+            changedStructs: components["schemas"]["StructChange"][];
+            isEmpty?: boolean;
+        } | null;
+        FormatFrameDto: {
+            /** Format: int32 */
+            headerBytes: number;
+            sync: string;
+            length: string;
+            /** Format: int32 */
+            lengthUnitBytes: number;
+        } | null;
+        FormatMessageDto: {
+            key: string;
+            table: string;
+            events: number[];
+            stored: boolean;
+            tracked: boolean;
+            title: string | null;
+            group: string | null;
+            /** Format: int32 */
+            level: number | null;
+            hidden: boolean;
+            /** Format: int32 */
+            sizeBytes: number;
+            columns: components["schemas"]["FormatColumnDto"][];
+            children: components["schemas"]["FormatChildDto"][];
+        };
+        FormatProject: {
+            id: string;
+            name: string;
+            settings?: components["schemas"]["FormatSettings"];
+            recipe?: components["schemas"]["Recipe"];
+            events?: components["schemas"]["EventRule"][];
+        };
+        FormatSettings: {
+            byteOrder?: components["schemas"]["ByteOrder"];
+            bitOrder?: components["schemas"]["BitOrder"];
+            /** Format: int32 */
+            pack?: number | null;
+            syncHex?: string | null;
+            /** Format: double */
+            timeUnitSeconds?: number;
+            defaultDate?: string | null;
+            naming?: components["schemas"]["NamingOptions"];
+            sqlSchema?: string | null;
+        };
+        FormatSummaryDto: {
+            id: string;
+            name: string;
+            /** Format: int32 */
+            version: number | null;
+            canImport: boolean;
+            /** Format: int32 */
+            messages: number;
+            /** Format: int32 */
+            errors: number;
+            /** Format: int32 */
+            warnings: number;
+        };
+        FormatUploadResultDto: {
+            detail: components["schemas"]["FormatDetailDto"];
+            diff: components["schemas"]["FormatDiff"];
+            newVersion: boolean;
+        };
+        FormatVersionDto: {
+            /** Format: int32 */
+            version: number;
+            sha256: string;
+            /** Format: int64 */
+            bytes: number;
+            /** Format: date-time */
+            savedUtc: string;
+        };
         HttpValidationProblemDetails: {
             type?: string | null;
             title?: string | null;
@@ -1016,6 +1292,10 @@ export interface components {
         };
         /** @enum {unknown} */
         ImportState: "Queued" | "Running" | "Completed" | "Duplicate" | "Failed" | "Cancelled";
+        JoinTarget: {
+            target: string;
+            countField?: string | null;
+        };
         Legend: {
             position: components["schemas"]["LegendPosition"];
             text: string;
@@ -1042,6 +1322,18 @@ export interface components {
             /** Format: int32 */
             maxZoom: number;
         };
+        NamingOptions: {
+            tables?: string;
+            columns?: string;
+            /** Format: int32 */
+            arrayIndexBase?: number;
+        };
+        NavSource: {
+            message: string;
+            fields?: {
+                [key: string]: string;
+            };
+        } | null;
         /**
          * @default null
          * @enum {unknown}
@@ -1055,6 +1347,11 @@ export interface components {
             param: components["schemas"]["SeriesParam"];
             window: components["schemas"]["SeriesWindowDto"];
             series: components["schemas"]["EmitterSeriesDto"][];
+        };
+        ParseDiagnosticDto: {
+            /** Format: int64 */
+            fileOffset: number;
+            message: string;
         };
         Placement: {
             mode?: components["schemas"]["PlacementMode"];
@@ -1116,6 +1413,17 @@ export interface components {
             eventType: components["schemas"]["EventType"];
             counts: number[];
         };
+        Recipe: {
+            bind?: {
+                [key: string]: string;
+            };
+            derived?: {
+                [key: string]: string[];
+            };
+            tracks?: components["schemas"]["TrackRecipe"][];
+            nav?: components["schemas"]["NavSource"];
+            flightInfo?: components["schemas"]["FlightInfoSource"];
+        };
         ResetPasswordRequest: {
             newPassword: string;
         };
@@ -1142,6 +1450,16 @@ export interface components {
             userName: string;
             displayName: string;
             password: string;
+        };
+        StructChange: {
+            struct: string;
+            /** Format: int32 */
+            sizeBefore: number;
+            /** Format: int32 */
+            sizeAfter: number;
+            added: string[];
+            removed: string[];
+            moved: string[];
         };
         SymbologyProfile: {
             id: string;
@@ -1183,6 +1501,33 @@ export interface components {
             pulseWidthUs?: number[] | null;
             emitterIds?: number[] | null;
         };
+        TrackRecipe: {
+            struct: string;
+            table?: string | null;
+            key: string;
+            new?: number[];
+            update?: number[];
+            delete?: number[];
+            extension?: number[];
+            status?: components["schemas"]["TrackStatus"];
+            deleteCodeFrom?: string | null;
+            deleteCodeTo?: string | null;
+            join?: components["schemas"]["ExtensionJoin"];
+            attachNav?: {
+                [key: string]: string;
+            };
+        };
+        TrackStatus: {
+            field: string;
+            /** Format: int32 */
+            new?: number;
+            /** Format: int32 */
+            extension?: number;
+            /** Format: int32 */
+            update?: number;
+            /** Format: int32 */
+            delete?: number;
+        } | null;
         UnavailableDatabaseDto: {
             id: string;
             name: string;
@@ -1935,6 +2280,8 @@ export interface operations {
                     file: components["schemas"]["IFormFile"];
                 } & {
                     databaseId?: string;
+                } & {
+                    format?: string;
                 };
             };
         };
@@ -2039,6 +2386,304 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListFormats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormatSummaryDto"][];
+                };
+            };
+        };
+    };
+    CreateFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFormatRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormatDetailDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormatDetailDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SaveFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormatProject"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormatDetailDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GetFormatHeader: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UploadFormatHeader: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormatUploadResultDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateDemoFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormatDetailDto"];
+                };
+            };
+        };
+    };
+    DryRunFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DryRunDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
