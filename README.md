@@ -17,9 +17,28 @@ docs/superpowers/   design spec and implementation plans
 ## Prerequisites
 
 - .NET 9 SDK, Node 20+
-- SQL Server reachable with Windows authentication at `localhost` (change `ConnectionStrings:Pmda`
-  in `src/PMDA.Api/appsettings.json` otherwise). In Development the API creates the `PMDA`
-  database on start.
+- SQL Server. By default the API uses Windows authentication at `localhost` (`ConnectionStrings:Pmda`
+  in `src/PMDA.Api/appsettings.json`). In Development it creates the `PMDA` database on start.
+
+### Database connection
+
+The connection can also be set up from the app, with no file editing and no restart:
+
+- **No database yet** (or the configured one is unreachable): PMDA opens a "Connect PMDA to SQL Server" form
+  instead of the login screen. It works only on the server machine itself, like creating the first administrator.
+  Other machines see a notice.
+- **Database working:** Admins open user menu → **Database…** from any machine.
+
+The form tests the connection, can create the database, runs the schema scripts, saves the settings and switches
+the running API over. You can use Windows authentication (the account the API runs as) or a SQL Server login.
+Switching to a *different* database signs everyone out, because sessions belong to the database. The change is
+refused while imports are running.
+
+The settings are saved in `%ProgramData%\PMDA\database.json` (override with `Database:SettingsPath`). That file
+overrides `ConnectionStrings:Pmda`, and only Administrators, SYSTEM and the API's account can read it. A SQL login
+password is encrypted with Windows DPAPI (machine scope) and is never sent back to the browser. To return to
+`appsettings.json`, delete the file and restart the API. Without either, the API starts anyway: `/api/*` answers
+503 "Database not configured" until the database is set up.
 
 ## Run
 
